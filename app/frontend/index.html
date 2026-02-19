@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Catálogos de Repuestos - Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+<style>
+  :root {
+    --hansair-blue: #004a80;         /* header / botones principales   */
+    --hansair-blue-dark: #00345a;    /* hover                         */
+    --hansair-blue-light: #e5eff7;   /* fondos suaves / stripes       */
+    --hansair-yellow: #ffc800;       /* acentos (opcional)            */
+    --hansair-bg: #f5f5f5;           /* fondo general                 */
+    --hansair-card-bg: #ffffff;      /* tarjetas / tablas             */
+    --hansair-border: #d1d5db;       /* bordes suaves                 */
+    --hansair-text-main: #111827;    /* texto principal (casi negro)  */
+    --hansair-text-muted: #6b7280;   /* texto secundario              */
+  }
+
+  body {
+    background: var(--hansair-bg);
+    color: var(--hansair-text-main);
+  }
+
+  .navbar {
+    background: var(--hansair-blue);
+    border-bottom: 2px solid #ffffff;
+  }
+
+  .navbar-brand,
+  .navbar .navbar-text {
+    color: #ffffff !important;
+  }
+
+  .brand-logo {
+    height: 28px;
+  }
+
+  .card {
+    background: var(--hansair-card-bg);
+    border: 1px solid var(--hansair-border);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+    color: var(--hansair-text-main);
+  }
+
+  .text-secondary {
+    color: var(--hansair-text-muted) !important;
+  }
+
+  .small-label {
+    font-size: 0.8rem;
+    color: var(--hansair-text-muted);
+    letter-spacing: 0.02em;
+  }
+
+  /* Inputs y selects */
+  .form-control,
+  .form-select {
+    background: #ffffff;
+    color: var(--hansair-text-main);
+    border-color: var(--hansair-border);
+  }
+
+  .form-control:focus,
+  .form-select:focus {
+    box-shadow: 0 0 0 0.15rem rgba(0, 74, 128, 0.35);
+    border-color: var(--hansair-blue);
+    background: #ffffff;
+    color: var(--hansair-text-main);
+  }
+
+  .form-control::placeholder {
+    color: #9ca3af;
+    opacity: 1;
+  }
+
+  /* Botones */
+  .btn-primary {
+    background: var(--hansair-blue);
+    border-color: var(--hansair-blue);
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  .btn-primary:hover {
+    background: var(--hansair-blue-dark);
+    border-color: var(--hansair-blue-dark);
+  }
+
+  .btn-outline-light {
+    border-color: var(--hansair-blue);
+    color: var(--hansair-blue);
+    background: transparent;
+    font-weight: 500;
+  }
+
+  .btn-outline-light:hover {
+    background: var(--hansair-blue);
+    color: #ffffff;
+  }
+
+  .badge-pill {
+    border-radius: 999px;
+  }
+
+  /* Tabs */
+  .tab-btn {
+    border-color: var(--hansair-border);
+    color: var(--hansair-text-main);
+    background: #ffffff;
+  }
+
+  .tab-btn.active {
+    background: var(--hansair-blue) !important;
+    color: #ffffff !important;
+    border-color: var(--hansair-blue) !important;
+  }
+
+/* Tabla */
+.table-dark {
+  --bs-table-bg: #ffffff;
+  --bs-table-striped-bg: var(--hansair-blue-light);
+  --bs-table-striped-color: var(--hansair-text-main);
+  --bs-table-border-color: var(--hansair-border);
+  --bs-table-color: var(--hansair-text-main);   /* 👈 clave: texto oscuro */
+}
+
+/* encabezado con fondo azul y texto blanco */
+.table-dark thead th {
+  background: var(--hansair-blue);
+  color: #ffffff;
+  border-bottom-color: var(--hansair-blue-dark);
+}
+
+/* cuerpo de la tabla: texto oscuro siempre */
+.table-dark tbody td,
+.table-dark tbody th {
+  color: var(--hansair-text-main);
+}
+
+.table-dark tbody tr:hover {
+  background-color: #dde8f3;
+}
+
+
+  /* Modal */
+  .modal-content {
+    background: #ffffff;
+    color: var(--hansair-text-main);
+    border: 1px solid var(--hansair-border);
+  }
+
+  .modal-header,
+  .modal-footer {
+    border-color: var(--hansair-border);
+  }
+
+  .btn-close.btn-close-white {
+    filter: invert(0); /* como el fondo es blanco, usamos el close normal */
+  }
+
+  details summary {
+    cursor: pointer;
+  }
+
+  code {
+    background: var(--hansair-blue-light);
+    color: var(--hansair-blue-dark);
+    padding: 0.1rem 0.35rem;
+    border-radius: 999px;
+    font-size: 0.85em;
+  }
+</style>
+</head>
+
+<body>
+  <nav class="navbar navbar-dark mb-4">
+    <div class="container d-flex justify-content-between align-items-center">
+      <a class="navbar-brand m-0" href="#">
+        <img
+          src="/static/logo.svg"
+          alt="Hansair"
+          style="height:32px; width:auto;"
+        />
+      </a>
+
+      <span class="navbar-text small text-light">
+        FastAPI + Base de datos
+      </span>
+    </div>
+  </nav>
+
+  <div class="container mb-5">
+    <div class="row g-3 mb-4">
+      <div class="col-md-8">
+        <div class="card h-100">
+          <div class="card-body">
+            <h4 class="card-title mb-2">Catalogo Hansair</h4>
+            <p class="mb-2">
+              Esta interfaz muestra la app terminada:
+            </p>
+            <ul class="mb-0">
+              <li>Búsqueda unificada de repuestos por código o descripción.</li>
+              <li>Visualización de información clave de cada pieza.</li>
+              <li>Carga de nuevos catálogos en Excel/PDF hacia el backend.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="text-secondary small mb-2">Estado completada, falta retroalimentación</h6>
+            <div class="d-flex justify-content-between mb-2">
+              <span class="small-label">Catálogos cargados</span>
+              <span class="badge bg-primary badge-pill" id="statCatalogs">–</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+              <span class="small-label">Repuestos en BD</span>
+              <span class="badge bg-success badge-pill" id="statParts">–</span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span class="small-label">Última actualización</span>
+              <span class="small" id="statUpdated">–</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <div class="btn-group" role="group">
+        <button
+          type="button"
+          class="btn btn-outline-light tab-btn active"
+          data-target="#tab-search"
+        >
+          🔍 Buscar repuesto
+        </button>
+        <button
+          type="button"
+          class="btn btn-outline-light tab-btn"
+          data-target="#tab-catalogs"
+          id="btn-tab-catalogs"
+        >
+          📋 Ver Catálogos
+        </button>
+        <button
+          type="button"
+          class="btn btn-outline-light tab-btn"
+          data-target="#tab-upload"
+        >
+          📤 Cargar catálogo
+        </button>
+      </div>
+    </div>
+
+    <!-- ===================== TAB SEARCH ===================== -->
+    <div id="tab-search" class="tab-content-section">
+      <div class="card mb-3">
+        <div class="card-body">
+          <h5 class="card-title mb-3">Buscar repuestos</h5>
+
+          <form id="searchForm" class="row g-3">
+            <div class="col-md-5">
+              <label class="form-label small-label">Código o descripción</label>
+              <textarea class="form-control" id="searchQuery" rows="1" placeholder="Ej: 10296, Light Diffuser, etc.
+Puedes pegar una columna desde Excel (enter/tab/espacios)." required style="resize:vertical; min-height:38px; overflow:hidden;"></textarea>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label small-label">Proveedor (opcional)</label>
+              <input
+                type="text"
+                class="form-control"
+                id="searchVendor"
+                placeholder="Ej: STUKERJURGEN"
+              />
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label small-label">Moneda (opcional)</label>
+              <select class="form-select" id="searchCurrency">
+                <option value="">Todas</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </div>
+
+            <!-- ✅ Botones Buscar + Exportar -->
+            <div class="col-md-2 d-flex align-items-end gap-2">
+              <button class="btn btn-primary w-100" type="submit">
+                Buscar
+              </button>
+              <button
+                class="btn btn-outline-primary w-100"
+                type="button"
+                id="btnExportExcel"
+                title="Exportar resultados a Excel"
+              >
+                Exportar
+              </button>
+            </div>
+          </form>
+
+          <div id="searchStatus" class="mt-2 small text-secondary"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <h6 class="mb-3 text-secondary">Resultados</h6>
+          <div class="table-responsive">
+            <table class="table table-dark table-striped align-middle">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Descripción</th>
+                  <th>Proveedor</th>
+                  <th>Detalle</th>
+                </tr>
+              </thead>
+              <tbody id="resultsBody">
+                <tr>
+                  <td colspan="4" class="text-center text-secondary">
+                    Sin resultados todavía. Realiza una búsqueda.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="resultsCount" class="small text-secondary mt-2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== TAB CATALOGS ===================== -->
+    <div id="tab-catalogs" class="tab-content-section" style="display: none;">
+      <div class="card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title m-0">Catálogos en el sistema</h5>
+            <button class="btn btn-sm btn-outline-primary" onclick="loadCatalogs()">
+              🔄 Refrescar
+            </button>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            <button class="btn btn-sm btn-primary" type="button" onclick="exportStandardAll()">
+              ⬇ Exportar Excel estándar (todos)
+            </button>
+            <button class="btn btn-sm btn-outline-primary" type="button" onclick="exportStandardSelected()">
+              ⬇ Exportar Excel estándar (seleccionados)
+            </button>
+            <button class="btn btn-sm btn-danger" type="button" onclick="deleteCatalogsSelected()">
+              🗑 Eliminar seleccionados
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-dark table-striped align-middle">
+              <thead>
+                <tr>
+                  <th style="width:38px;">
+                    <input class="form-check-input" type="checkbox" id="chkAllCatalogs" title="Seleccionar todos" />
+                  </th>
+                  <th>ID</th>
+                  <th>Proveedor</th>
+                  <th>Año</th>
+                  <th>Archivo Original</th>
+                  <th>Fecha de Carga</th>
+                  <th style="width:110px;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="catalogsBody">
+                <tr>
+                  <td colspan="7" class="text-center text-secondary">
+                    Cargando lista...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== TAB UPLOAD ===================== -->
+    <div id="tab-upload" class="tab-content-section" style="display: none;">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title mb-3">Cargar nuevo catálogo</h5>
+          <p class="small text-secondary">
+            Aquí puedes subir archivos Excel o PDF de proveedores como Panasonic,
+            Stukerjurgen, Airtec, etc. El backend se encarga de leerlos y
+            normalizar los repuestos.
+          </p>
+
+          <form id="uploadForm" class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label small-label">Archivo</label>
+              <input
+                class="form-control"
+                type="file"
+                id="catalogFile"
+                accept=".xlsx,.xls,.pdf"
+                required
+              />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small-label">Proveedor / Catálogo</label>
+              <input
+                type="text"
+                class="form-control"
+                id="catalogVendor"
+                placeholder="Ej: PANASONIC SPPC2023"
+                required
+              />
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small-label">Moneda (para mostrar)</label>
+              <select class="form-select" id="catalogCurrency" required>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+              <button class="btn btn-primary w-100" type="submit">
+                Subir
+              </button>
+            </div>
+          </form>
+
+          <div id="uploadStatus" class="mt-3 small"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== MODAL DETALLE ===================== -->
+  <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content" style="background:#020617;color:#e5e7eb;">
+        <div class="modal-header">
+          <h5 class="modal-title" id="detailTitle">Detalle del repuesto</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-secondary mb-3">
+            Aquí se muestra toda la información del producto de forma resumida y entendible.
+          </p>
+
+          <div id="detailContent"></div>
+
+          <hr class="border-secondary my-3" />
+
+          <details class="small text-secondary">
+            <summary>Ver JSON completo (modo desarrollador)</summary>
+            <pre id="detailJsonRaw" style="background:#020617;border-radius:0.5rem;padding:1rem;font-size:0.8rem;max-height:40vh;overflow:auto;"></pre>
+          </details>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // Usa la misma URL donde está sirviendo el backend.
+    // - Si abres el HTML como archivo (file://), cae a localhost:8000.
+    // - Si está servido por FastAPI (recomendado), usa el mismo origin.
+    const API_BASE = (window.location.protocol === "file:")
+      ? "http://localhost:8000"
+      : window.location.origin;
+    let lastResults = [];
+
+    // --- Auto-grow textarea (para pegar muchos PN) + TAB dentro del campo ---
+    const searchQueryEl = document.getElementById('searchQuery');
+    function autoGrow(el) {
+      if (!el) return;
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 220) + 'px';
+    }
+    if (searchQueryEl) {
+      autoGrow(searchQueryEl);
+      searchQueryEl.addEventListener('input', () => autoGrow(searchQueryEl));
+      searchQueryEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          const start = searchQueryEl.selectionStart;
+          const end = searchQueryEl.selectionEnd;
+          const value = searchQueryEl.value;
+          searchQueryEl.value = value.substring(0, start) + '	' + value.substring(end);
+          searchQueryEl.selectionStart = searchQueryEl.selectionEnd = start + 1;
+          autoGrow(searchQueryEl);
+        }
+      });
+    }
+
+
+    // ----- Tabs -----
+    const tabButtons = document.querySelectorAll(".tab-btn");
+    const tabSections = document.querySelectorAll(".tab-content-section");
+    tabButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        tabButtons.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        const target = btn.getAttribute("data-target");
+        tabSections.forEach((sec) => {
+          sec.style.display = sec.id === target.substring(1) ? "block" : "none";
+        });
+      });
+    });
+
+    // Helpers
+    function formatLabel(key) {
+      return key.replace(/_/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase());
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // ----- Detalle amigable -----
+    function showDetail(index) {
+      const item = lastResults[index];
+      if (!item) return;
+
+      const code = item.part_number_full || item.part_number_root || "";
+      const desc = item.description || "";
+
+      const titleEl = document.getElementById("detailTitle");
+      const contentEl = document.getElementById("detailContent");
+      const rawPreEl = document.getElementById("detailJsonRaw");
+
+      if (code && desc) titleEl.textContent = `${code} – ${desc}`;
+      else if (code) titleEl.textContent = `Detalle de ${code}`;
+      else titleEl.textContent = "Detalle del repuesto";
+
+      rawPreEl.textContent = JSON.stringify(item, null, 2);
+
+      const mainRows = [];
+      mainRows.push(["Código completo", code || "–"]);
+      mainRows.push(["Código raíz", item.part_number_root || "–"]);
+      mainRows.push(["Descripción", desc || "–"]);
+
+      const proveedor =
+        item.supplier_name ||
+        (item.supplier && item.supplier.name) ||
+        item.vendor_name ||
+        (item.catalog && item.catalog.supplier_name) ||
+        item.catalog_source ||
+        "–";
+
+      mainRows.push(["Proveedor", proveedor]);
+
+      const moneda = item.currency || "–";
+      const basePrice =
+        item.base_price !== undefined && item.base_price !== null ? item.base_price.toFixed(2) : "–";
+
+      mainRows.push(["Moneda base", moneda]);
+      mainRows.push(["Precio base", basePrice]);
+
+      if (item.min_qty_default !== undefined && item.min_qty_default !== null) {
+        mainRows.push(["Cantidad mínima por defecto", item.min_qty_default]);
+      }
+
+      let html = `
+        <h6 class="mb-2">Información general</h6>
+        <table class="table table-sm table-dark mb-3">
+          <tbody>
+            ${mainRows.map(([label, value]) => `
+              <tr>
+                <th style="width:35%;">${escapeHtml(label)}</th>
+                <td>${escapeHtml(value)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+
+      const tiers = Array.isArray(item.price_tiers) ? item.price_tiers : [];
+      if (tiers.length) {
+        html += `
+          <h6 class="mb-2">Tramos de precio</h6>
+          <table class="table table-sm table-dark mb-3">
+            <thead>
+              <tr>
+                <th>Cant. mínima</th>
+                <th>Cant. máxima</th>
+                <th>Precio unitario</th>
+                <th>Moneda</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tiers.map((t) => {
+                const minq = t.min_qty ?? "–";
+                const maxq = t.max_qty ?? "–";
+                const unitPrice = (t.unit_price !== undefined && t.unit_price !== null) ? t.unit_price.toFixed(2) : "–";
+                const cur = t.currency || moneda || "–";
+                return `
+                  <tr>
+                    <td>${escapeHtml(minq)}</td>
+                    <td>${escapeHtml(maxq)}</td>
+                    <td>${escapeHtml(unitPrice)}</td>
+                    <td>${escapeHtml(cur)}</td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        `;
+      }
+
+      const attrs = item.attributes || item.extra_attributes || [];
+      if (Array.isArray(attrs) && attrs.length) {
+        html += `
+          <h6 class="mb-2">Información específica del catálogo</h6>
+          <table class="table table-sm table-dark mb-3">
+            <thead>
+              <tr>
+                <th>Atributo</th>
+                <th>Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${attrs.map((a) => {
+                const name = a.attr_name || a.name || "–";
+                const value = a.attr_value || a.value || "–";
+                return `
+                  <tr>
+                    <td>${escapeHtml(name)}</td>
+                    <td>${escapeHtml(value)}</td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        `;
+      }
+
+      contentEl.innerHTML = html;
+
+      const modalEl = document.getElementById("detailModal");
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
+    }
+
+    // ----- Buscar repuestos -----
+    const searchForm = document.getElementById("searchForm");
+    const searchStatus = document.getElementById("searchStatus");
+    const resultsBody = document.getElementById("resultsBody");
+    const resultsCount = document.getElementById("resultsCount");
+
+    searchForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const query = document.getElementById("searchQuery").value.trim();
+      const vendor = document.getElementById("searchVendor").value.trim();
+      const currency = document.getElementById("searchCurrency").value;
+
+      if (!query) return;
+
+      searchStatus.textContent = "Buscando repuestos...";
+      resultsBody.innerHTML = `
+        <tr>
+          <td colspan="4" class="text-center text-secondary">Cargando resultados...</td>
+        </tr>
+      `;
+      resultsCount.textContent = "";
+
+      try {
+        const params = new URLSearchParams({ q: query });
+        if (vendor) params.append("vendor", vendor);
+        if (currency) params.append("currency", currency);
+
+        const resp = await fetch(`${API_BASE}/parts/search?` + params.toString());
+        if (!resp.ok) throw new Error("Error al consultar la API");
+
+        const data = await resp.json();
+        const results = Array.isArray(data) ? data : data.items || [];
+        lastResults = results;
+
+        if (!results.length) {
+          resultsBody.innerHTML = `
+            <tr>
+              <td colspan="4" class="text-center text-secondary">
+                No se encontraron repuestos para esta búsqueda.
+              </td>
+            </tr>
+          `;
+          resultsCount.textContent = "";
+          searchStatus.textContent = "Sin resultados.";
+          return;
+        }
+
+        resultsBody.innerHTML = "";
+        results.forEach((item, idx) => {
+          const codigo = item.part_number_full || item.part_number_root || "-";
+          const desc = item.description || "-";
+
+          const proveedor =
+            item.supplier_name ||
+            (item.supplier && item.supplier.name) ||
+            item.vendor_name ||
+            (item.catalog && item.catalog.supplier_name) ||
+            item.catalog_source ||
+            "-";
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td><code>${escapeHtml(codigo)}</code></td>
+            <td>${escapeHtml(desc)}</td>
+            <td>${escapeHtml(proveedor)}</td>
+            <td>
+              <button type="button" class="btn btn-sm btn-outline-light" data-detail-index="${idx}">
+                Ver
+              </button>
+            </td>
+          `;
+          resultsBody.appendChild(tr);
+        });
+
+        document.querySelectorAll("button[data-detail-index]").forEach((btn) => {
+          btn.addEventListener("click", (ev) => {
+            const idx = parseInt(ev.currentTarget.getAttribute("data-detail-index"), 10);
+            showDetail(idx);
+          });
+        });
+
+        resultsCount.textContent = `${results.length} repuesto(s) encontrados.`;
+        searchStatus.textContent = "Búsqueda completada.";
+      } catch (err) {
+        console.error(err);
+        resultsBody.innerHTML = `
+          <tr>
+            <td colspan="4" class="text-center text-danger">
+              Ocurrió un error al buscar. Revisa que el backend esté levantado.
+            </td>
+          </tr>
+        `;
+        searchStatus.textContent = "Error al buscar repuestos.";
+      }
+    });
+
+    // ✅ Exportar Excel
+    const btnExportExcel = document.getElementById("btnExportExcel");
+    if (btnExportExcel) {
+      btnExportExcel.addEventListener("click", () => {
+        const q = document.getElementById("searchQuery").value.trim();
+        const vendor = document.getElementById("searchVendor").value.trim();
+        const currency = document.getElementById("searchCurrency").value;
+
+        if (!q) {
+          alert("Primero ingresa un código o descripción para buscar.");
+          return;
+        }
+
+        const params = new URLSearchParams();
+        params.append("q", q);
+
+        // OJO: el export usa supplier (no vendor)
+        if (vendor) params.append("supplier", vendor);
+        if (currency) params.append("currency", currency);
+
+        window.open(`${API_BASE}/parts/search/export?${params.toString()}`, "_blank");
+      });
+    }
+
+    // ----- Subir catálogo -----
+    const uploadForm = document.getElementById("uploadForm");
+    const uploadStatus = document.getElementById("uploadStatus");
+
+    uploadForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fileInput = document.getElementById("catalogFile");
+      const vendorInput = document.getElementById("catalogVendor");
+
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("supplier_name", vendorInput.value);
+      formData.append("year", new Date().getFullYear());
+
+      uploadStatus.textContent = "Subiendo catálogo...";
+      uploadStatus.className = "mt-3 small text-secondary";
+
+      try {
+        const resp = await fetch(`${API_BASE}/catalogs/upload`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!resp.ok) {
+          const errorText = await resp.text();
+          throw new Error(errorText || "Error al subir catálogo");
+        }
+
+        await resp.json().catch(() => ({}));
+
+        uploadStatus.textContent = "Catálogo subido y procesado correctamente.";
+        uploadStatus.className = "mt-3 small text-success";
+
+        uploadForm.reset();
+
+        loadStats();
+        loadCatalogs();
+      } catch (err) {
+        console.error(err);
+        uploadStatus.textContent =
+          "Error al subir catálogo. Revisa la consola o los logs del backend.";
+        uploadStatus.className = "mt-3 small text-danger";
+      }
+    });
+
+    // ----- Cargar lista de catálogos -----
+    async function loadCatalogs() {
+      const tbody = document.getElementById("catalogsBody");
+      if (!tbody) return;
+
+      tbody.innerHTML = `
+        <tr><td colspan="7" class="text-center text-secondary">Cargando...</td></tr>
+      `;
+
+      try {
+        const resp = await fetch(`${API_BASE}/catalogs`);
+        if (!resp.ok) throw new Error("Error al obtener catálogos");
+
+        const data = await resp.json();
+
+        if (!Array.isArray(data) || data.length === 0) {
+          tbody.innerHTML = `
+            <tr><td colspan="7" class="text-center text-secondary">No hay catálogos subidos aún.</td></tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = "";
+        data.forEach((cat) => {
+          let dateStr = "–";
+          if (cat.created_at) {
+            const dateObj = new Date(cat.created_at);
+            dateStr = dateObj.toLocaleString("es-CL");
+          }
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>
+              <input class="form-check-input catalog-check" type="checkbox" data-id="${escapeHtml(cat.id)}" />
+            </td>
+            <td>${escapeHtml(cat.id)}</td>
+            <td class="fw-bold text-primary">${escapeHtml(cat.supplier_name || "–")}</td>
+            <td>${escapeHtml(cat.year)}</td>
+            <td><code>${escapeHtml(cat.original_filename)}</code></td>
+            <td class="small">${escapeHtml(dateStr)}</td>
+            <td>
+              <button class="btn btn-sm btn-danger" type="button" onclick="deleteCatalog(${escapeHtml(cat.id)})">
+                🗑
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error(err);
+        tbody.innerHTML = `
+          <tr><td colspan="7" class="text-center text-danger">Error al cargar la lista.</td></tr>
+        `;
+      }
+    }
+
+    // ----- Exportar Excel estándar -----
+    function getSelectedCatalogIds() {
+      return Array.from(document.querySelectorAll(".catalog-check:checked"))
+        .map((el) => el.getAttribute("data-id"))
+        .filter(Boolean);
+    }
+
+    function exportStandardAll() {
+      window.location.href = `${API_BASE}/catalogs/export/standard.xlsx`;
+    }
+
+    function exportStandardSelected() {
+      const ids = getSelectedCatalogIds();
+      if (!ids.length) {
+        alert("Selecciona al menos un catálogo para exportar.");
+        return;
+      }
+      const qs = encodeURIComponent(ids.join(","));
+      window.location.href = `${API_BASE}/catalogs/export/standard.xlsx?catalog_ids=${qs}`;
+    }
+
+    // ----- Eliminar catálogo -----
+    async function deleteCatalog(id) {
+      if (!confirm(`¿Eliminar el catálogo ID ${id}? Esto borrará sus parts y precios.`)) return;
+      try {
+        const resp = await fetch(`${API_BASE}/catalogs/${id}`, { method: "DELETE" });
+        if (!resp.ok) {
+          const t = await resp.text();
+          throw new Error(t || "Error al eliminar catálogo");
+        }
+        await loadCatalogs();
+        await loadStats?.();
+      } catch (err) {
+        console.error(err);
+        alert("No se pudo eliminar el catálogo.\n\nDetalle: " + (err?.message || err));
+      }
+    }
+
+    // ----- Eliminar varios catálogos (seleccionados) -----
+    async function deleteCatalogsSelected() {
+      const ids = getSelectedCatalogIds();
+      if (!ids.length) {
+        alert("Selecciona al menos un catálogo para eliminar.");
+        return;
+      }
+
+      if (!confirm(`¿Eliminar ${ids.length} catálogo(s)? Esto borrará sus parts y precios.`)) return;
+
+      try {
+        const qs = encodeURIComponent(ids.join(","));
+        const resp = await fetch(`${API_BASE}/catalogs?catalog_ids=${qs}`, { method: "DELETE" });
+        if (!resp.ok) {
+          const t = await resp.text();
+          throw new Error(t || "Error al eliminar catálogos");
+        }
+
+        // refrescar
+        document.getElementById("chkAllCatalogs").checked = false;
+        await loadCatalogs();
+        await loadStats?.();
+      } catch (err) {
+        console.error(err);
+        alert("No se pudieron eliminar los catálogos.\n\nDetalle: " + (err?.message || err));
+      }
+    }
+
+    // ----- Seleccionar todos -----
+    document.addEventListener("change", (e) => {
+      if (e.target && e.target.id === "chkAllCatalogs") {
+        const checked = e.target.checked;
+        document.querySelectorAll(".catalog-check").forEach((c) => (c.checked = checked));
+      }
+    });
+
+    const btnCatalogs = document.getElementById("btn-tab-catalogs");
+    if (btnCatalogs) {
+      btnCatalogs.addEventListener("click", () => {
+        loadCatalogs();
+      });
+    }
+
+    // ----- Stats reales desde el backend (/stats) -----
+    async function loadStats() {
+      const elCatalogs = document.getElementById("statCatalogs");
+      const elParts = document.getElementById("statParts");
+      const elUpdated = document.getElementById("statUpdated");
+
+      try {
+        const resp = await fetch(`${API_BASE}/stats`);
+        if (!resp.ok) throw new Error("Error al obtener /stats");
+
+        const data = await resp.json();
+
+        const catalogs = data.catalogs ?? 0;
+        const parts = data.parts ?? 0;
+
+        elCatalogs.textContent = catalogs.toLocaleString("es-CL");
+        elParts.textContent = parts.toLocaleString("es-CL");
+
+        const ts = data.generated_at ? new Date(data.generated_at) : new Date();
+        elUpdated.textContent = ts.toLocaleString();
+      } catch (err) {
+        console.error("Error cargando /stats:", err);
+        elCatalogs.textContent = "–";
+        elParts.textContent = "–";
+        elUpdated.textContent = new Date().toLocaleString();
+      }
+    }
+
+    // Carga inicial
+    loadStats();
+  </script>
+</body>
+</html>
