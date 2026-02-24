@@ -77,7 +77,13 @@ def parse_pdf_aes(pdf_bytes: bytes) -> pd.DataFrame:
                 rename[c] = "length_inch"
             elif "length in cm" in lc:
                 rename[c] = "length_cm"
-        return df.rename(columns=rename)
+        df = df.rename(columns=rename)
+
+        # 🔹 AES tiene lead time global (no por fila)
+        df["lead_time"] = "always on request"
+
+        return df
+
 
     except Exception:
         # fallback genérico

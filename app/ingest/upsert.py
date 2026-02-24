@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, Tuple
+from typing import Dict
 
 import pandas as pd
 from sqlalchemy.orm import Session
@@ -38,20 +38,33 @@ def upsert_parse_result(
     aliases: pd.DataFrame,
     attributes: pd.DataFrame,
 ) -> Dict[str, int]:
-    """Inserta todo como nuevos registros (por catálogo).
+    """Inserta todo como nuevos registros (por catálogo), tolerante a distintas variantes de nombres.
 
-    Esta versión v2 es simple y estable:
-    - Crea una fila Part por cada row en parts
-    - Vincula tiers/aliases/attributes por part_number
+    - Inserta Parts desde `parts`
+    - Vincula tiers/aliases/attributes por part_number (part_number_full original del DF)
 
-    Espera (mínimo) en parts:
-      part_number, description, currency, price, min_qty (opcional)
+    Esta función soporta varias variantes de columnas (compat v1/v2):
+    parts:
+      part_number | part_number_full | pn | code
+      description | desc
+      currency
+      base_price | price | unit_price
+      min_qty_default | min_qty | moq
+      (además: columnas extra como length_inch, certificate, lead_time, etc. se guardan como attributes)
     tiers:
-      part_number, min_qty, max_qty, unit_price, currency
+      part_number | part_number_full | pn
+      min_qty | min
+      max_qty | max
+      unit_price | price
+      currency
     aliases:
-      part_number, code, source
+      part_number | part_number_full | pn
+      code | alias_code
+      source
     attributes:
-      part_number, attr_name, attr_value
+      part_number | part_number_full | pn
+      attr_name | key
+      attr_value | value
     """
 
     parts = parts.copy() if parts is not None else pd.DataFrame()
@@ -59,12 +72,109 @@ def upsert_parse_result(
     aliases = aliases.copy() if aliases is not None else pd.DataFrame()
     attributes = attributes.copy() if attributes is not None else pd.DataFrame()
 
-    # normalizar columnas a lower
-    for df in (parts, tiers, aliases, attributes):
-        if df is not None and not df.empty:
-            df.columns = [str(c).strip() for c in df.columns]
+    def _clean_columns(df: pd.DataFrame) -> pd.DataFrame:
+        if df is None or df.empty:
+            return df
+        df.columns = [str(c).strip() for c in df.columns]
+        return df
 
-    # mapa PN -> Part.id
+    parts = _clean_columns(parts)
+    tiers = _clean_columns(tiers)
+    aliases = _clean_columns(aliases)
+    attributes = _clean_columns(attributes)
+
+    def _rename_if_present(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
+        if df is None or df.empty:
+            return df
+        cols = {c: mapping[c] for c in df.columns if c in mapping}
+        return df.rename(columns=cols) if cols else df
+
+    # Compat: normaliza nombres a los esperados por el upsert
+    parts = _rename_if_present(
+        parts,
+        {
+            "part_number_full": "part_number",
+            "pn": "part_number",
+            "code": "part_number",
+            "desc": "description",
+            "base_price": "price",
+            "unit_price": "price",
+            "moq": "min_qty",
+            "min_qty_default": "min_qty",
+        },
+    )
+
+    tiers = _rename_if_present(
+        tiers,
+        {
+            "part_number_full": "part_number",
+            "pn": "part_number",
+            "min": "min_qty",
+            "max": "max_qty",
+            "price": "unit_price",
+        },
+    )
+
+    aliases = _rename_if_present(
+        aliases,
+        {
+            "part_number_full": "part_number",
+            "pn": "part_number",
+            "alias_code": "code",
+        },
+    )
+
+    attributes = _rename_if_present(
+        attributes,
+        {
+            "part_number_full": "part_number",
+            "pn": "part_number",
+            "key": "attr_name",
+            "value": "attr_value",
+        },
+    )
+
+    def _notna(v) -> bool:
+        try:
+            return pd.notna(v)
+        except Exception:
+            return v is not None
+
+    def _to_int(v, default=None):
+        if not _notna(v):
+            return default
+        s = str(v).strip()
+        if not s:
+            return default
+        try:
+            return int(float(s))
+        except Exception:
+            return default
+
+    def _to_float(v, default=None):
+        if not _notna(v):
+            return default
+        s = str(v).strip()
+        if not s:
+            return default
+        # soporta "1.234,56" y "1,234.56"
+        s = s.replace(" ", "")
+        if "," in s and "." in s:
+            # si la coma parece decimal (va después del punto), cambiamos formato europeo a estándar
+            if s.rfind(",") > s.rfind("."):
+                s = s.replace(".", "").replace(",", ".")
+            else:
+                s = s.replace(",", "")
+        else:
+            # si solo hay coma, la tomamos como decimal
+            if "," in s and "." not in s:
+                s = s.replace(",", ".")
+        try:
+            return float(s)
+        except Exception:
+            return default
+
+    # mapa PN(raw del DF) -> Part(obj)
     pn_to_part: Dict[str, models.Part] = {}
 
     inserted_parts = 0
@@ -72,87 +182,137 @@ def upsert_parse_result(
     inserted_aliases = 0
     inserted_attrs = 0
 
+    pending_extra_attrs = []  # (raw_pn, key, value)
+
+    # PARTS
     if parts is not None and not parts.empty:
         for _, row in parts.iterrows():
-            pn = str(row.get("part_number", "") or "").strip()
-            if not pn:
+            raw_pn = str(row.get("part_number", "") or "").strip()
+            if not raw_pn:
                 continue
 
-            full, root = normalize_part_number(pn)
+            full, root = normalize_part_number(raw_pn)
+
+            desc = row.get("description")
+            cur = row.get("currency")
+            price = row.get("price")
+            min_qty = row.get("min_qty")
+
             part = models.Part(
                 catalog_id=catalog.id,
                 supplier_id=supplier.id,
                 part_number_full=full,
                 part_number_root=root,
-                description=(row.get("description") if pd.notna(row.get("description")) else None),
-                currency=(row.get("currency") if pd.notna(row.get("currency")) else None),
-                base_price=(float(row.get("price")) if pd.notna(row.get("price")) else None),
-                min_qty_default=(int(row.get("min_qty")) if pd.notna(row.get("min_qty")) else 1),
+                description=(str(desc).strip() if _notna(desc) and str(desc).strip() else None),
+                currency=(str(cur).strip() if _notna(cur) and str(cur).strip() else None),
+                base_price=_to_float(price, default=None),
+                min_qty_default=_to_int(min_qty, default=1) or 1,
                 is_active=True,
             )
             db.add(part)
-            pn_to_part[pn] = part
+            pn_to_part[raw_pn] = part
             inserted_parts += 1
 
+            # Guardar columnas extra como attributes (ej: length_inch, certificate, lead_time, etc.)
+            core_cols = {
+                "part_number",
+                "description",
+                "currency",
+                "price",
+                "min_qty",
+                "source_file",
+                "parser_name",
+            }
+            for col in parts.columns:
+                if col in core_cols:
+                    continue
+                v = row.get(col)
+                if not _notna(v):
+                    continue
+                sv = str(v).strip()
+                if not sv:
+                    continue
+                pending_extra_attrs.append((raw_pn, col, sv))
+
         db.commit()
-        # refresh ids
-        for pn, part in pn_to_part.items():
+        for _, part in pn_to_part.items():
             db.refresh(part)
 
-    # tiers
+    # TIERS
     if tiers is not None and not tiers.empty:
         for _, row in tiers.iterrows():
-            pn = str(row.get("part_number", "") or "").strip()
-            if not pn:
+            raw_pn = str(row.get("part_number", "") or "").strip()
+            if not raw_pn:
                 continue
-            part = pn_to_part.get(pn)
+            part = pn_to_part.get(raw_pn)
             if not part:
-                # si no está (por ejemplo, tiers parseados sin parts), lo ignoramos
                 continue
+
+            min_q = _to_int(row.get("min_qty"), default=1) or 1
+            max_q = _to_int(row.get("max_qty"), default=None)
+            unit_p = _to_float(row.get("unit_price"), default=None)
+            cur = row.get("currency")
+            cur = (str(cur).strip() if _notna(cur) and str(cur).strip() else None) or part.currency
+
             pt = models.PriceTier(
                 part_id=part.id,
-                min_qty=(int(row.get("min_qty")) if pd.notna(row.get("min_qty")) else 1),
-                max_qty=(int(row.get("max_qty")) if pd.notna(row.get("max_qty")) else None),
-                unit_price=(float(row.get("unit_price")) if pd.notna(row.get("unit_price")) else None),
-                currency=(row.get("currency") if pd.notna(row.get("currency")) else part.currency),
+                min_qty=min_q,
+                max_qty=max_q,
+                unit_price=unit_p,
+                currency=cur,
             )
             db.add(pt)
             inserted_tiers += 1
         db.commit()
 
-    # aliases
+    # ALIASES
     if aliases is not None and not aliases.empty:
         for _, row in aliases.iterrows():
-            pn = str(row.get("part_number", "") or "").strip()
+            raw_pn = str(row.get("part_number", "") or "").strip()
             code = str(row.get("code", "") or "").strip()
-            if not pn or not code:
+            if not raw_pn or not code:
                 continue
-            part = pn_to_part.get(pn)
+            part = pn_to_part.get(raw_pn)
             if not part:
                 continue
+
+            src = row.get("source")
             al = models.PartAlias(
                 part_id=part.id,
                 code=code,
-                source=(row.get("source") if pd.notna(row.get("source")) else None),
+                source=(str(src).strip() if _notna(src) and str(src).strip() else None),
             )
             db.add(al)
             inserted_aliases += 1
         db.commit()
 
-    # attributes
+    # ATTRIBUTES (desde DF attributes)
     if attributes is not None and not attributes.empty:
         for _, row in attributes.iterrows():
-            pn = str(row.get("part_number", "") or "").strip()
-            if not pn:
+            raw_pn = str(row.get("part_number", "") or "").strip()
+            if not raw_pn:
                 continue
-            part = pn_to_part.get(pn)
+            part = pn_to_part.get(raw_pn)
             if not part:
                 continue
+
             name = str(row.get("attr_name", "") or "").strip()
             val = str(row.get("attr_value", "") or "").strip()
             if not name or not val:
                 continue
+
             at = models.PartAttribute(part_id=part.id, attr_name=name, attr_value=val)
+            db.add(at)
+            inserted_attrs += 1
+        db.commit()
+
+    # ATTRIBUTES extra (desde columnas no-core en parts)
+    if pending_extra_attrs:
+        for raw_pn, key, val in pending_extra_attrs:
+            part = pn_to_part.get(raw_pn)
+            if not part:
+                continue
+            at = models.PartAttribute(part_id=part.id, attr_name=str(key), attr_value=str(val))
             db.add(at)
             inserted_attrs += 1
         db.commit()
