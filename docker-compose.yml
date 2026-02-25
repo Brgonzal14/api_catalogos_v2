@@ -11,11 +11,27 @@ services:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+
+  # Corre una vez y asegura extensiones/índices/columnas aunque el volumen ya exista
+  db_ready:
+    image: postgres:16
+    depends_on:
+      - db
+    environment:
+      POSTGRES_USER: catalogos
+      POSTGRES_PASSWORD: catalogos
+      POSTGRES_DB: catalogos_db
+    volumes:
+      - ./db/ensure_indexes.sh:/ensure_indexes.sh:ro
+    entrypoint: ["bash", "/ensure_indexes.sh"]
+    restart: "no"
 
   api:
     build: .
     depends_on:
       - db
+      - db_ready
     environment:
       DATABASE_URL: postgresql://catalogos:catalogos@db:5432/catalogos_db
     ports:
