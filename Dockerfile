@@ -2,14 +2,15 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Ya NO instalamos Java, porque para el prototipo solo usamos Excel/CSV.
-# Si más adelante agregamos PDFs con Tabula/OCR, ahí lo vemos de nuevo.
-
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# gunicorn para múltiples workers (performance)
+RUN pip install --no-cache-dir gunicorn
 
 COPY app ./app
 
 ENV PYTHONPATH=/app
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 2 workers suele ir bien en PCs normales; si el PC es potente, sube a 3-4.
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "app.main:app", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120"]

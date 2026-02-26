@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16
@@ -12,16 +10,24 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catalogos -d catalogos_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
-  # Corre una vez y asegura extensiones/índices/columnas aunque el volumen ya exista
   db_ready:
     image: postgres:16
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       POSTGRES_USER: catalogos
       POSTGRES_PASSWORD: catalogos
       POSTGRES_DB: catalogos_db
+      PGPASSWORD: catalogos
+      PGHOST: db
+      PGPORT: 5432
     volumes:
       - ./db/ensure_indexes.sh:/ensure_indexes.sh:ro
     entrypoint: ["bash", "/ensure_indexes.sh"]
@@ -37,7 +43,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./app:/app/app   # para editar en Visual Studio y ver cambios
+      - ./app:/app/app
 
 volumes:
   db_data:
