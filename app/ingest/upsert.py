@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, Iterable, List, Any
 
 import pandas as pd
 from sqlalchemy.orm import Session
@@ -28,6 +28,91 @@ def create_catalog(db: Session, supplier: models.Supplier, year: int, filename: 
     return catalog
 
 
+def _notna(v) -> bool:
+    try:
+        return pd.notna(v)
+    except Exception:
+        return v is not None
+
+
+def _to_int(v, default=None):
+    if not _notna(v):
+        return default
+    s = str(v).strip()
+    if not s:
+        return default
+    try:
+        return int(float(s))
+    except Exception:
+        return default
+
+
+def _to_float(v, default=None):
+    if not _notna(v):
+        return default
+    s = str(v).strip()
+    if not s:
+        return default
+    # soporta "1.234,56" y "1,234.56"
+    s = s.replace(" ", "")
+    if "," in s and "." in s:
+        # si la coma parece decimal (va después del punto), cambiamos formato europeo a estándar
+        if s.rfind(",") > s.rfind("."):
+            s = s.replace(".", "").replace(",", ".")
+        else:
+            s = s.replace(",", "")
+    else:
+        # si solo hay coma, la tomamos como decimal
+        if "," in s and "." not in s:
+            s = s.replace(",", ".")
+    try:
+        return float(s)
+    except Exception:
+        return default
+
+
+def _clean_columns(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return df
+    df.columns = [str(c).strip() for c in df.columns]
+    return df
+
+
+def _rename_if_present(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
+    if df is None or df.empty:
+        return df
+    cols = {c: mapping[c] for c in df.columns if c in mapping}
+    return df.rename(columns=cols) if cols else df
+
+
+def _iter_alias_codes(v: Any) -> Iterable[str]:
+    """
+    Acepta:
+    - lista ['A','B']
+    - string "A, B\nC"
+    - None
+    Devuelve códigos limpios.
+    """
+    if not _notna(v) or v is None:
+        return []
+    if isinstance(v, list) or isinstance(v, tuple) or isinstance(v, set):
+        for x in v:
+            s = str(x).strip()
+            if s:
+                yield s
+        return
+    # string
+    s = str(v).strip()
+    if not s:
+        return
+    # split por coma o salto de línea
+    for token in s.replace("\r", "\n").split("\n"):
+        for t in token.split(","):
+            tt = t.strip()
+            if tt:
+                yield tt
+
+
 def upsert_parse_result(
     db: Session,
     *,
@@ -38,33 +123,11 @@ def upsert_parse_result(
     aliases: pd.DataFrame,
     attributes: pd.DataFrame,
 ) -> Dict[str, int]:
-    """Inserta todo como nuevos registros (por catálogo), tolerante a distintas variantes de nombres.
+    """
+    Inserta todo como nuevos registros (por catálogo), tolerante a distintas variantes de nombres.
 
     - Inserta Parts desde `parts`
-    - Vincula tiers/aliases/attributes por part_number (part_number_full original del DF)
-
-    Esta función soporta varias variantes de columnas (compat v1/v2):
-    parts:
-      part_number | part_number_full | pn | code
-      description | desc
-      currency
-      base_price | price | unit_price
-      min_qty_default | min_qty | moq
-      (además: columnas extra como length_inch, certificate, lead_time, etc. se guardan como attributes)
-    tiers:
-      part_number | part_number_full | pn
-      min_qty | min
-      max_qty | max
-      unit_price | price
-      currency
-    aliases:
-      part_number | part_number_full | pn
-      code | alias_code
-      source
-    attributes:
-      part_number | part_number_full | pn
-      attr_name | key
-      attr_value | value
+    - Vincula tiers/aliases/attributes por part_number (raw del DF)
     """
 
     parts = parts.copy() if parts is not None else pd.DataFrame()
@@ -72,22 +135,10 @@ def upsert_parse_result(
     aliases = aliases.copy() if aliases is not None else pd.DataFrame()
     attributes = attributes.copy() if attributes is not None else pd.DataFrame()
 
-    def _clean_columns(df: pd.DataFrame) -> pd.DataFrame:
-        if df is None or df.empty:
-            return df
-        df.columns = [str(c).strip() for c in df.columns]
-        return df
-
     parts = _clean_columns(parts)
     tiers = _clean_columns(tiers)
     aliases = _clean_columns(aliases)
     attributes = _clean_columns(attributes)
-
-    def _rename_if_present(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
-        if df is None or df.empty:
-            return df
-        cols = {c: mapping[c] for c in df.columns if c in mapping}
-        return df.rename(columns=cols) if cols else df
 
     # Compat: normaliza nombres a los esperados por el upsert
     parts = _rename_if_present(
@@ -134,45 +185,18 @@ def upsert_parse_result(
         },
     )
 
-    def _notna(v) -> bool:
-        try:
-            return pd.notna(v)
-        except Exception:
-            return v is not None
-
-    def _to_int(v, default=None):
-        if not _notna(v):
-            return default
-        s = str(v).strip()
-        if not s:
-            return default
-        try:
-            return int(float(s))
-        except Exception:
-            return default
-
-    def _to_float(v, default=None):
-        if not _notna(v):
-            return default
-        s = str(v).strip()
-        if not s:
-            return default
-        # soporta "1.234,56" y "1,234.56"
-        s = s.replace(" ", "")
-        if "," in s and "." in s:
-            # si la coma parece decimal (va después del punto), cambiamos formato europeo a estándar
-            if s.rfind(",") > s.rfind("."):
-                s = s.replace(".", "").replace(",", ".")
-            else:
-                s = s.replace(",", "")
-        else:
-            # si solo hay coma, la tomamos como decimal
-            if "," in s and "." not in s:
-                s = s.replace(",", ".")
-        try:
-            return float(s)
-        except Exception:
-            return default
+    # ✅ NUEVO: si parts trae columna "aliases" y aliases DF viene vacío,
+    #          construimos aliases DF (para buscar también por END-UNIT)
+    if (aliases is None or aliases.empty) and (parts is not None and not parts.empty) and ("aliases" in parts.columns):
+        rows: List[dict] = []
+        for _, r in parts.iterrows():
+            raw_pn = str(r.get("part_number", "") or "").strip()
+            if not raw_pn:
+                continue
+            for code in _iter_alias_codes(r.get("aliases")):
+                rows.append({"part_number": raw_pn, "code": code, "source": "end_unit"})
+        if rows:
+            aliases = pd.DataFrame(rows)
 
     # mapa PN(raw del DF) -> Part(obj)
     pn_to_part: Dict[str, models.Part] = {}
@@ -213,7 +237,7 @@ def upsert_parse_result(
             pn_to_part[raw_pn] = part
             inserted_parts += 1
 
-            # Guardar columnas extra como attributes (ej: length_inch, certificate, lead_time, etc.)
+            # Guardar columnas extra como attributes
             core_cols = {
                 "part_number",
                 "description",
@@ -222,6 +246,8 @@ def upsert_parse_result(
                 "min_qty",
                 "source_file",
                 "parser_name",
+                # ✅ no guardamos aliases como attribute (ya lo insertamos como PartAlias)
+                "aliases",
             }
             for col in parts.columns:
                 if col in core_cols:

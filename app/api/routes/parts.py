@@ -124,103 +124,32 @@ def search_parts(
                     "unit_price": json_safe_number(pt.unit_price),
                     "currency": pt.currency,
                 }
-                for pt in getattr(part, "price_tiers", [])
-            ],
-            "aliases": [
-                {"id": al.id, "code": al.code, "source": al.source}
-                for al in db.query(models.PartAlias).filter(models.PartAlias.part_id == part.id).all()
-            ],
-            "attributes": [
-                {"id": attr.id, "attr_name": attr.attr_name, "attr_value": attr.attr_value}
-                for attr in getattr(part, "attributes", [])
+                for pt in (getattr(part, "price_tiers", None) or [])
             ],
         }
         results.append(item)
 
-    MAX_RESULTS = 20000
-    MAX_WILDCARD_CANDIDATES = 20000
-
     for part, supplier in rows:
         push_part(part, supplier)
-        if len(results) >= MAX_RESULTS:
-            return results
-
-    # wildcard X segunda pasada
-    if len(results) < MAX_RESULTS:
-        for t in terms:
-            t_clean = (t or "").strip()
-            if not t_clean:
-                continue
-            t_norm = normalize_pn(t_clean)
-
-            pref = smart_prefix(t_norm, min_len=6)
-            if not pref:
-                continue
-
-            q2 = (
-                db.query(models.Part, models.Supplier)
-                .join(models.Supplier, models.Part.supplier_id == models.Supplier.id)
-                .outerjoin(models.PartAlias, models.PartAlias.part_id == models.Part.id)
-                .filter(
-                    or_(
-                        and_(
-                            sql_normalize(models.Part.part_number_full, db).ilike(f"{pref}%"),
-                            sql_normalize(models.Part.part_number_full, db).ilike("%X%"),
-                        ),
-                        and_(
-                            sql_normalize(models.PartAlias.code, db).ilike(f"{pref}%"),
-                            sql_normalize(models.PartAlias.code, db).ilike("%X%"),
-                        ),
-                    )
-                )
-            )
-
-            if vendor_clean:
-                q2 = q2.filter(models.Supplier.name.ilike(f"%{vendor_clean}%"))
-
-            wildcard_candidates = q2.limit(MAX_WILDCARD_CANDIDATES).all()
-
-            for part, supplier in wildcard_candidates:
-                if part.id in seen_parts:
-                    continue
-
-                ok = wildcard_x_match(part.part_number_full, t_clean)
-
-                if not ok:
-                    alias_rows = (
-                        db.query(models.PartAlias.code)
-                        .filter(models.PartAlias.part_id == part.id)
-                        .all()
-                    )
-                    ok = any(wildcard_x_match(code, t_clean) for (code,) in alias_rows if code)
-
-                if ok:
-                    push_part(part, supplier)
-                    if len(results) >= MAX_RESULTS:
-                        break
-
-            if len(results) >= MAX_RESULTS:
-                break
 
     return results
 
 
-@router.get("/search/export")
+@router.get("/export")
 def export_search_results(
     query: str = Query(..., alias="q", min_length=1),
     vendor: str = Query(None),
     db: Session = Depends(get_db),
 ):
-    rows = search_parts(query=query, vendor=vendor, db=db)
+    results = search_parts(query=query, vendor=vendor, db=db)
 
-    # convertir a DF
     records = []
-    for r in rows:
+    for r in results:
         records.append(
             {
-                "part_number": r.get("part_number_full"),
+                "supplier_name": r.get("supplier_name"),
+                "part_number_full": r.get("part_number_full"),
                 "description": r.get("description"),
-                "supplier": r.get("supplier_name"),
                 "currency": r.get("currency"),
                 "base_price": r.get("base_price"),
                 "min_qty_default": r.get("min_qty_default"),
