@@ -11,3 +11,4 @@ from .vendors_stuker_sac import StukerSacPdfParser  # noqa: F401
 from .vendors_stuker_hansair import StukerHansairPdfParser  # noqa: F401
 from .vendors_tdi import TDIPdfParser  # noqa: F401
 from .vendors_vincorion import VincorionPdfParser  # noqa: F401
+from .vendors_biw import BIWPdfParser  # noqa: F401
