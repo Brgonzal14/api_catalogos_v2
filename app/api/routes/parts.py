@@ -126,6 +126,20 @@ def search_parts(
                 }
                 for pt in (getattr(part, "price_tiers", None) or [])
             ],
+            "attributes": [
+                {
+                    "attr_name": attr.attr_name,
+                    "attr_value": attr.attr_value,
+                }
+                for attr in (getattr(part, "attributes", None) or [])
+            ],
+            "aliases": [
+                {
+                    "code": alias.code,
+                    "source": alias.source,
+                }
+                for alias in (getattr(part, "aliases", None) or [])
+            ],
         }
         results.append(item)
 

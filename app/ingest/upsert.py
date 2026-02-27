@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from app import models
 from app.utils.search import normalize_part_number
 
+BATCH_SIZE = 500  # registros por commit para catálogos grandes
+
 
 def get_or_create_supplier(db: Session, name: str) -> models.Supplier:
     supplier = db.query(models.Supplier).filter(models.Supplier.name == name).first()
@@ -53,16 +55,13 @@ def _to_float(v, default=None):
     s = str(v).strip()
     if not s:
         return default
-    # soporta "1.234,56" y "1,234.56"
     s = s.replace(" ", "")
     if "," in s and "." in s:
-        # si la coma parece decimal (va después del punto), cambiamos formato europeo a estándar
         if s.rfind(",") > s.rfind("."):
             s = s.replace(".", "").replace(",", ".")
         else:
             s = s.replace(",", "")
     else:
-        # si solo hay coma, la tomamos como decimal
         if "," in s and "." not in s:
             s = s.replace(",", ".")
     try:
@@ -86,26 +85,17 @@ def _rename_if_present(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
 
 
 def _iter_alias_codes(v: Any) -> Iterable[str]:
-    """
-    Acepta:
-    - lista ['A','B']
-    - string "A, B\nC"
-    - None
-    Devuelve códigos limpios.
-    """
     if not _notna(v) or v is None:
         return []
-    if isinstance(v, list) or isinstance(v, tuple) or isinstance(v, set):
+    if isinstance(v, (list, tuple, set)):
         for x in v:
             s = str(x).strip()
             if s:
                 yield s
         return
-    # string
     s = str(v).strip()
     if not s:
         return
-    # split por coma o salto de línea
     for token in s.replace("\r", "\n").split("\n"):
         for t in token.split(","):
             tt = t.strip()
@@ -124,10 +114,8 @@ def upsert_parse_result(
     attributes: pd.DataFrame,
 ) -> Dict[str, int]:
     """
-    Inserta todo como nuevos registros (por catálogo), tolerante a distintas variantes de nombres.
-
-    - Inserta Parts desde `parts`
-    - Vincula tiers/aliases/attributes por part_number (raw del DF)
+    Inserta todo como nuevos registros (por catálogo).
+    Usa inserts en lotes (BATCH_SIZE) para manejar catálogos grandes sin timeout.
     """
 
     parts = parts.copy() if parts is not None else pd.DataFrame()
@@ -140,53 +128,24 @@ def upsert_parse_result(
     aliases = _clean_columns(aliases)
     attributes = _clean_columns(attributes)
 
-    # Compat: normaliza nombres a los esperados por el upsert
-    parts = _rename_if_present(
-        parts,
-        {
-            "part_number_full": "part_number",
-            "pn": "part_number",
-            "code": "part_number",
-            "desc": "description",
-            "base_price": "price",
-            "unit_price": "price",
-            "moq": "min_qty",
-            "min_qty_default": "min_qty",
-        },
-    )
+    parts = _rename_if_present(parts, {
+        "part_number_full": "part_number", "pn": "part_number", "code": "part_number",
+        "desc": "description", "base_price": "price", "unit_price": "price",
+        "moq": "min_qty", "min_qty_default": "min_qty",
+    })
+    tiers = _rename_if_present(tiers, {
+        "part_number_full": "part_number", "pn": "part_number",
+        "min": "min_qty", "max": "max_qty", "price": "unit_price",
+    })
+    aliases = _rename_if_present(aliases, {
+        "part_number_full": "part_number", "pn": "part_number", "alias_code": "code",
+    })
+    attributes = _rename_if_present(attributes, {
+        "part_number_full": "part_number", "pn": "part_number",
+        "key": "attr_name", "value": "attr_value",
+    })
 
-    tiers = _rename_if_present(
-        tiers,
-        {
-            "part_number_full": "part_number",
-            "pn": "part_number",
-            "min": "min_qty",
-            "max": "max_qty",
-            "price": "unit_price",
-        },
-    )
-
-    aliases = _rename_if_present(
-        aliases,
-        {
-            "part_number_full": "part_number",
-            "pn": "part_number",
-            "alias_code": "code",
-        },
-    )
-
-    attributes = _rename_if_present(
-        attributes,
-        {
-            "part_number_full": "part_number",
-            "pn": "part_number",
-            "key": "attr_name",
-            "value": "attr_value",
-        },
-    )
-
-    # ✅ NUEVO: si parts trae columna "aliases" y aliases DF viene vacío,
-    #          construimos aliases DF (para buscar también por END-UNIT)
+    # Construir aliases desde columna "aliases" en parts si el DF aliases está vacío
     if (aliases is None or aliases.empty) and (parts is not None and not parts.empty) and ("aliases" in parts.columns):
         rows: List[dict] = []
         for _, r in parts.iterrows():
@@ -198,57 +157,41 @@ def upsert_parse_result(
         if rows:
             aliases = pd.DataFrame(rows)
 
-    # mapa PN(raw del DF) -> Part(obj)
     pn_to_part: Dict[str, models.Part] = {}
-
     inserted_parts = 0
     inserted_tiers = 0
     inserted_aliases = 0
     inserted_attrs = 0
+    pending_extra_attrs: List[tuple] = []
 
-    pending_extra_attrs = []  # (raw_pn, key, value)
+    core_cols = {"part_number", "description", "currency", "price", "min_qty",
+                 "source_file", "parser_name", "aliases"}
 
-    # PARTS
+    # ── PARTS ──────────────────────────────────────────────────────────────
     if parts is not None and not parts.empty:
+        batch: List[models.Part] = []
         for _, row in parts.iterrows():
             raw_pn = str(row.get("part_number", "") or "").strip()
             if not raw_pn:
                 continue
-
             full, root = normalize_part_number(raw_pn)
-
             desc = row.get("description")
             cur = row.get("currency")
             price = row.get("price")
             min_qty = row.get("min_qty")
-
             part = models.Part(
-                catalog_id=catalog.id,
-                supplier_id=supplier.id,
-                part_number_full=full,
-                part_number_root=root,
+                catalog_id=catalog.id, supplier_id=supplier.id,
+                part_number_full=full, part_number_root=root,
                 description=(str(desc).strip() if _notna(desc) and str(desc).strip() else None),
                 currency=(str(cur).strip() if _notna(cur) and str(cur).strip() else None),
                 base_price=_to_float(price, default=None),
                 min_qty_default=_to_int(min_qty, default=1) or 1,
                 is_active=True,
             )
-            db.add(part)
+            batch.append(part)
             pn_to_part[raw_pn] = part
             inserted_parts += 1
 
-            # Guardar columnas extra como attributes
-            core_cols = {
-                "part_number",
-                "description",
-                "currency",
-                "price",
-                "min_qty",
-                "source_file",
-                "parser_name",
-                # ✅ no guardamos aliases como attribute (ya lo insertamos como PartAlias)
-                "aliases",
-            }
             for col in parts.columns:
                 if col in core_cols:
                     continue
@@ -256,16 +199,26 @@ def upsert_parse_result(
                 if not _notna(v):
                     continue
                 sv = str(v).strip()
-                if not sv:
+                if not sv or sv.lower() in ("nan", "none", "null"):
                     continue
                 pending_extra_attrs.append((raw_pn, col, sv))
 
-        db.commit()
-        for _, part in pn_to_part.items():
-            db.refresh(part)
+            if len(batch) >= BATCH_SIZE:
+                db.add_all(batch)
+                db.commit()
+                for p in batch:
+                    db.refresh(p)
+                batch = []
 
-    # TIERS
+        if batch:
+            db.add_all(batch)
+            db.commit()
+            for p in batch:
+                db.refresh(p)
+
+    # ── TIERS ──────────────────────────────────────────────────────────────
     if tiers is not None and not tiers.empty:
+        batch_tiers: List[models.PriceTier] = []
         for _, row in tiers.iterrows():
             raw_pn = str(row.get("part_number", "") or "").strip()
             if not raw_pn:
@@ -273,47 +226,58 @@ def upsert_parse_result(
             part = pn_to_part.get(raw_pn)
             if not part:
                 continue
-
             min_q = _to_int(row.get("min_qty"), default=1) or 1
             max_q = _to_int(row.get("max_qty"), default=None)
             unit_p = _to_float(row.get("unit_price"), default=None)
             cur = row.get("currency")
             cur = (str(cur).strip() if _notna(cur) and str(cur).strip() else None) or part.currency
-
-            pt = models.PriceTier(
-                part_id=part.id,
-                min_qty=min_q,
-                max_qty=max_q,
-                unit_price=unit_p,
-                currency=cur,
-            )
-            db.add(pt)
+            batch_tiers.append(models.PriceTier(
+                part_id=part.id, min_qty=min_q, max_qty=max_q,
+                unit_price=unit_p, currency=cur,
+            ))
             inserted_tiers += 1
-        db.commit()
+            if len(batch_tiers) >= BATCH_SIZE:
+                db.add_all(batch_tiers)
+                db.commit()
+                batch_tiers = []
+        if batch_tiers:
+            db.add_all(batch_tiers)
+            db.commit()
 
-    # ALIASES
+    # ── ALIASES ────────────────────────────────────────────────────────────
     if aliases is not None and not aliases.empty:
+        batch_aliases: List[models.PartAlias] = []
         for _, row in aliases.iterrows():
             raw_pn = str(row.get("part_number", "") or "").strip()
             code = str(row.get("code", "") or "").strip()
-            if not raw_pn or not code:
+            if not raw_pn or not code or code.lower() in ("nan", "none"):
                 continue
             part = pn_to_part.get(raw_pn)
             if not part:
                 continue
-
             src = row.get("source")
-            al = models.PartAlias(
-                part_id=part.id,
-                code=code,
+            batch_aliases.append(models.PartAlias(
+                part_id=part.id, code=code,
                 source=(str(src).strip() if _notna(src) and str(src).strip() else None),
-            )
-            db.add(al)
+            ))
             inserted_aliases += 1
-        db.commit()
+            if len(batch_aliases) >= BATCH_SIZE:
+                try:
+                    db.add_all(batch_aliases)
+                    db.commit()
+                except Exception:
+                    db.rollback()
+                batch_aliases = []
+        if batch_aliases:
+            try:
+                db.add_all(batch_aliases)
+                db.commit()
+            except Exception:
+                db.rollback()
 
-    # ATTRIBUTES (desde DF attributes)
+    # ── ATTRIBUTES desde DF ────────────────────────────────────────────────
     if attributes is not None and not attributes.empty:
+        batch_attrs: List[models.PartAttribute] = []
         for _, row in attributes.iterrows():
             raw_pn = str(row.get("part_number", "") or "").strip()
             if not raw_pn:
@@ -321,27 +285,52 @@ def upsert_parse_result(
             part = pn_to_part.get(raw_pn)
             if not part:
                 continue
-
             name = str(row.get("attr_name", "") or "").strip()
             val = str(row.get("attr_value", "") or "").strip()
-            if not name or not val:
+            if not name or not val or val.lower() in ("nan", "none", "null"):
                 continue
-
-            at = models.PartAttribute(part_id=part.id, attr_name=name, attr_value=val)
-            db.add(at)
+            batch_attrs.append(models.PartAttribute(
+                part_id=part.id, attr_name=name, attr_value=val,
+            ))
             inserted_attrs += 1
-        db.commit()
+            if len(batch_attrs) >= BATCH_SIZE:
+                try:
+                    db.add_all(batch_attrs)
+                    db.commit()
+                except Exception:
+                    db.rollback()
+                batch_attrs = []
+        if batch_attrs:
+            try:
+                db.add_all(batch_attrs)
+                db.commit()
+            except Exception:
+                db.rollback()
 
-    # ATTRIBUTES extra (desde columnas no-core en parts)
+    # ── ATTRIBUTES extra desde columnas no-core de parts ──────────────────
     if pending_extra_attrs:
+        batch_extra: List[models.PartAttribute] = []
         for raw_pn, key, val in pending_extra_attrs:
             part = pn_to_part.get(raw_pn)
             if not part:
                 continue
-            at = models.PartAttribute(part_id=part.id, attr_name=str(key), attr_value=str(val))
-            db.add(at)
+            batch_extra.append(models.PartAttribute(
+                part_id=part.id, attr_name=str(key), attr_value=str(val),
+            ))
             inserted_attrs += 1
-        db.commit()
+            if len(batch_extra) >= BATCH_SIZE:
+                try:
+                    db.add_all(batch_extra)
+                    db.commit()
+                except Exception:
+                    db.rollback()
+                batch_extra = []
+        if batch_extra:
+            try:
+                db.add_all(batch_extra)
+                db.commit()
+            except Exception:
+                db.rollback()
 
     return {
         "parts": inserted_parts,

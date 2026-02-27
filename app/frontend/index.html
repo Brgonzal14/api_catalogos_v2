@@ -4,89 +4,71 @@
   <meta charset="UTF-8" />
   <title>Catálogos de Repuestos - Demo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
 <style>
-  :root {
-    --hansair-blue: #004a80;
-    --hansair-blue-dark: #00345a;
-    --hansair-blue-light: #e5eff7;
-    --hansair-bg: #f5f5f5;
-    --hansair-card-bg: #ffffff;
-    --hansair-border: #d1d5db;
-    --hansair-text-main: #111827;
-    --hansair-text-muted: #6b7280;
+  :root{
+    --blue:#004a80;
+    --blue2:#00345a;
+    --light:#e5eff7;
+    --bg:#f5f5f5;
+    --border:#d1d5db;
+    --txt:#111827;
+    --muted:#6b7280;
+  }
+  body{background:var(--bg);color:var(--txt);}
+  .navbar{background:var(--blue);border-bottom:2px solid #fff;}
+  .navbar-brand,.navbar .navbar-text{color:#fff!important;}
+  .card{background:#fff;border:1px solid var(--border);box-shadow:0 6px 18px rgba(0,0,0,.08);}
+  .text-secondary{color:var(--muted)!important;}
+  .small-label{font-size:.8rem;color:var(--muted);letter-spacing:.02em;}
+  .form-control,.form-select{background:#fff;color:var(--txt);border-color:var(--border);}
+  .form-control:focus,.form-select:focus{box-shadow:0 0 0 .15rem rgba(0,74,128,.35);border-color:var(--blue);}
+  .btn-primary{background:var(--blue);border-color:var(--blue);font-weight:600;}
+  .btn-primary:hover{background:var(--blue2);border-color:var(--blue2);}
+  .btn-outline-light{border-color:var(--blue);color:var(--blue);font-weight:500;}
+  .btn-outline-light:hover{background:var(--blue);color:#fff;}
+  .badge-pill{border-radius:999px;}
+  .tab-btn{border-color:var(--border);color:var(--txt);background:#fff;}
+  .tab-btn.active{background:var(--blue)!important;color:#fff!important;border-color:var(--blue)!important;}
+
+  /* Tables (v1 style: header blue, body white) */
+  .table-dark{
+    --bs-table-bg:#fff;
+    --bs-table-striped-bg:var(--light);
+    --bs-table-striped-color:var(--txt);
+    --bs-table-border-color:var(--border);
+    --bs-table-color:var(--txt);
+  }
+  .table-dark thead th{background:var(--blue);color:#fff;border-bottom-color:var(--blue2);}
+  .table-dark tbody td,.table-dark tbody th{color:var(--txt);}
+  .table-dark tbody tr:hover{background:#dde8f3;}
+
+  /* Modal dark like v1 */
+  .modal-content{border:1px solid rgba(255,255,255,.15);}
+  .modal-header,.modal-footer{border-color:rgba(255,255,255,.15);}
+  details summary{cursor:pointer;}
+
+  code{
+    background:var(--light);
+    color:var(--txt);
+    padding:.1rem .35rem;
+    border-radius:999px;
+    font-size:.85em;
   }
 
-  body { background: var(--hansair-bg); color: var(--hansair-text-main); }
-
-  .navbar { background: var(--hansair-blue); border-bottom: 2px solid #ffffff; }
-  .navbar-brand, .navbar .navbar-text { color: #ffffff !important; }
-
-  .card {
-    background: var(--hansair-card-bg);
-    border: 1px solid var(--hansair-border);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-    color: var(--hansair-text-main);
+  /* En el modal oscuro el code vuelve a ser claro */
+  .modal-content code{
+    background:rgba(255,255,255,.12);
+    color:#e5e7eb;
   }
 
-  .text-secondary { color: var(--hansair-text-muted) !important; }
-  .small-label { font-size: 0.8rem; color: var(--hansair-text-muted); letter-spacing: 0.02em; }
-
-  .form-control, .form-select { background:#fff; color:var(--hansair-text-main); border-color:var(--hansair-border); }
-  .form-control:focus, .form-select:focus {
-    box-shadow: 0 0 0 0.15rem rgba(0,74,128,0.35);
-    border-color: var(--hansair-blue);
-  }
-  .form-control::placeholder { color:#9ca3af; opacity:1; }
-
-  .btn-primary {
-    background: var(--hansair-blue);
-    border-color: var(--hansair-blue);
-    color: #fff;
-    font-weight: 600;
-  }
-  .btn-primary:hover { background: var(--hansair-blue-dark); border-color: var(--hansair-blue-dark); }
-
-  .btn-outline-light {
-    border-color: var(--hansair-blue);
-    color: var(--hansair-blue);
-    background: transparent;
-    font-weight: 500;
-  }
-  .btn-outline-light:hover { background: var(--hansair-blue); color:#fff; }
-
-  .badge-pill { border-radius:999px; }
-
-  .tab-btn { border-color: var(--hansair-border); color: var(--hansair-text-main); background:#fff; }
-  .tab-btn.active { background: var(--hansair-blue) !important; color:#fff !important; border-color: var(--hansair-blue) !important; }
-
-  /* Tabla */
-  .table-dark {
-    --bs-table-bg: #ffffff;
-    --bs-table-striped-bg: var(--hansair-blue-light);
-    --bs-table-striped-color: var(--hansair-text-main);
-    --bs-table-border-color: var(--hansair-border);
-    --bs-table-color: var(--hansair-text-main);
-  }
-  .table-dark thead th { background: var(--hansair-blue); color:#fff; border-bottom-color: var(--hansair-blue-dark); }
-  .table-dark tbody td, .table-dark tbody th { color: var(--hansair-text-main); }
-  .table-dark tbody tr:hover { background-color:#dde8f3; }
-
-  /* Modal */
-  .modal-content { border: 1px solid var(--hansair-border); }
-  .modal-header, .modal-footer { border-color: rgba(255,255,255,0.15); }
-
-  details summary { cursor:pointer; }
-
-  code {
-    background: rgba(255,255,255,0.10);
-    color: #e5e7eb;
-    padding: 0.1rem 0.35rem;
-    border-radius: 999px;
-    font-size: 0.85em;
+  .pre-cell{
+    white-space:pre-wrap;
+    word-break:break-word;
+    margin:0;
+    background:transparent;
+    color:inherit;
+    font-size:0.85rem;
   }
 </style>
 </head>
@@ -147,7 +129,7 @@
       </div>
     </div>
 
-    <!-- ===================== TAB SEARCH ===================== -->
+    <!-- TAB SEARCH -->
     <div id="tab-search" class="tab-content-section">
       <div class="card mb-3">
         <div class="card-body">
@@ -198,9 +180,7 @@ Puedes pegar una columna desde Excel (enter/tab/espacios)." required style="resi
                 </tr>
               </thead>
               <tbody id="resultsBody">
-                <tr>
-                  <td colspan="4" class="text-center text-secondary">Sin resultados todavía. Realiza una búsqueda.</td>
-                </tr>
+                <tr><td colspan="4" class="text-center text-secondary">Sin resultados todavía. Realiza una búsqueda.</td></tr>
               </tbody>
             </table>
           </div>
@@ -209,7 +189,7 @@ Puedes pegar una columna desde Excel (enter/tab/espacios)." required style="resi
       </div>
     </div>
 
-    <!-- ===================== TAB CATALOGS ===================== -->
+    <!-- TAB CATALOGS -->
     <div id="tab-catalogs" class="tab-content-section" style="display:none;">
       <div class="card">
         <div class="card-body">
@@ -242,19 +222,17 @@ Puedes pegar una columna desde Excel (enter/tab/espacios)." required style="resi
               </tbody>
             </table>
           </div>
-
         </div>
       </div>
     </div>
 
-    <!-- ===================== TAB UPLOAD ===================== -->
+    <!-- TAB UPLOAD -->
     <div id="tab-upload" class="tab-content-section" style="display:none;">
       <div class="card">
         <div class="card-body">
           <h5 class="card-title mb-3">Cargar nuevo catálogo</h5>
           <p class="small text-secondary">
-            Aquí puedes subir archivos Excel o PDF de proveedores como Panasonic, Stukerjurgen, Airtec, etc.
-            El backend se encarga de leerlos y normalizar los repuestos.
+            Aquí puedes subir archivos Excel o PDF. El backend se encarga de leerlos y normalizar los repuestos.
           </p>
 
           <form id="uploadForm" class="row g-3">
@@ -264,7 +242,7 @@ Puedes pegar una columna desde Excel (enter/tab/espacios)." required style="resi
             </div>
             <div class="col-md-4">
               <label class="form-label small-label">Proveedor / Catálogo</label>
-              <input type="text" class="form-control" id="catalogVendor" placeholder="Ej: PANASONIC SPPC2023" required />
+              <input type="text" class="form-control" id="catalogVendor" placeholder="Ej: HOLMCO 2026" required />
             </div>
             <div class="col-md-2">
               <label class="form-label small-label">Moneda (para mostrar)</label>
@@ -284,7 +262,7 @@ Puedes pegar una columna desde Excel (enter/tab/espacios)." required style="resi
     </div>
   </div>
 
-  <!-- ===================== MODAL DETALLE ===================== -->
+  <!-- MODAL DETALLE -->
   <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content" style="background:#020617;color:#e5e7eb;">
@@ -324,22 +302,22 @@ Puedes pegar una columna desde Excel (enter/tab/espacios)." required style="resi
 
     // Auto-grow textarea + TAB
     const searchQueryEl = document.getElementById('searchQuery');
-    function autoGrow(el) {
-      if (!el) return;
-      el.style.height = 'auto';
+    function autoGrow(el){
+      if(!el) return;
+      el.style.height='auto';
       el.style.height = Math.min(el.scrollHeight, 220) + 'px';
     }
-    if (searchQueryEl) {
+    if(searchQueryEl){
       autoGrow(searchQueryEl);
-      searchQueryEl.addEventListener('input', () => autoGrow(searchQueryEl));
-      searchQueryEl.addEventListener('keydown', (e) => {
-        if (e.key === 'Tab') {
+      searchQueryEl.addEventListener('input', ()=>autoGrow(searchQueryEl));
+      searchQueryEl.addEventListener('keydown', (e)=>{
+        if(e.key==='Tab'){
           e.preventDefault();
-          const start = searchQueryEl.selectionStart;
-          const end = searchQueryEl.selectionEnd;
-          const value = searchQueryEl.value;
-          searchQueryEl.value = value.substring(0, start) + '	' + value.substring(end);
-          searchQueryEl.selectionStart = searchQueryEl.selectionEnd = start + 1;
+          const start=searchQueryEl.selectionStart;
+          const end=searchQueryEl.selectionEnd;
+          const value=searchQueryEl.value;
+          searchQueryEl.value = value.substring(0,start) + '\t' + value.substring(end);
+          searchQueryEl.selectionStart = searchQueryEl.selectionEnd = start+1;
           autoGrow(searchQueryEl);
         }
       });
@@ -348,73 +326,65 @@ Puedes pegar una columna desde Excel (enter/tab/espacios)." required style="resi
     // Tabs
     const tabButtons = document.querySelectorAll(".tab-btn");
     const tabSections = document.querySelectorAll(".tab-content-section");
-    tabButtons.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        tabButtons.forEach((b) => b.classList.remove("active"));
+    tabButtons.forEach((btn)=>{
+      btn.addEventListener("click", ()=>{
+        tabButtons.forEach((b)=>b.classList.remove("active"));
         btn.classList.add("active");
         const target = btn.getAttribute("data-target");
-        tabSections.forEach((sec) => {
+        tabSections.forEach((sec)=>{
           sec.style.display = sec.id === target.substring(1) ? "block" : "none";
         });
       });
     });
 
     // Helpers
-    function escapeHtml(str) {
+    function escapeHtml(str){
       return String(str ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;");
     }
 
-    function pickNonEmptyArray(...cands) {
-      for (const c of cands) {
-        if (Array.isArray(c) && c.length) return c;
+    function isPlainObject(v){
+      return v && typeof v === "object" && !Array.isArray(v);
+    }
+
+    // Render value WITHOUT truncation (porque todo importa)
+    function renderValueCell(v){
+      if(v === null || v === undefined) return "–";
+      if(typeof v === "string") return escapeHtml(v.trim() ? v : "–");
+      if(typeof v === "number") return escapeHtml(String(v));
+      if(typeof v === "boolean") return escapeHtml(v ? "true" : "false");
+
+      // arrays / objects -> pretty JSON in <pre>
+      try{
+        const s = JSON.stringify(v, null, 2);
+        return `<pre class="pre-cell">${escapeHtml(s)}</pre>`;
+      }catch{
+        return escapeHtml(String(v));
+      }
+    }
+
+    function pickNonEmptyArray(...cands){
+      for(const c of cands){
+        if(Array.isArray(c) && c.length) return c;
       }
       return [];
     }
 
-    function renderAnyValue(v) {
-      if (v === null || v === undefined) return "–";
-      if (typeof v === "boolean") return v ? "true" : "false";
-      if (typeof v === "number") return Number.isFinite(v) ? String(v) : "–";
-      if (typeof v === "string") return v.trim() ? v : "–";
-
-      if (Array.isArray(v)) {
-        if (!v.length) return "[]";
-        const isPrimitiveArray = v.every(x => ["string","number","boolean"].includes(typeof x) || x === null);
-        if (isPrimitiveArray) return v.map(x => (x === null ? "–" : String(x))).join(", ");
-        const s = JSON.stringify(v);
-        return s.length > 350 ? (s.slice(0, 350) + "…") : s;
-      }
-
-      try {
-        const s = JSON.stringify(v);
-        return s.length > 350 ? (s.slice(0, 350) + "…") : s;
-      } catch {
-        return String(v);
-      }
-    }
-
-    // ===== Modal detalle (MUESTRA TODO) =====
-    function showDetail(index) {
+    // ===== Modal detalle =====
+    function showDetail(index){
       const item = lastResults[index];
-      if (!item) return;
+      if(!item) return;
 
       const code = item.part_number_full || item.part_number_root || "";
       const desc = item.description || "";
 
-      const titleEl = document.getElementById("detailTitle");
-      const contentEl = document.getElementById("detailContent");
-      const rawPreEl = document.getElementById("detailJsonRaw");
+      document.getElementById("detailTitle").textContent =
+        (code && desc) ? `${code} \u2013 ${desc}` :
+        (code ? `Detalle de ${code}` : "Detalle del repuesto");
 
-      if (code && desc) titleEl.textContent = `${code} – ${desc}`;
-      else if (code) titleEl.textContent = `Detalle de ${code}`;
-      else titleEl.textContent = "Detalle del repuesto";
-
-      rawPreEl.textContent = JSON.stringify(item, null, 2);
-
-      const usedKeys = new Set();
+      document.getElementById("detailJsonRaw").textContent = JSON.stringify(item, null, 2);
 
       const proveedor =
         item.supplier_name ||
@@ -422,178 +392,119 @@ Puedes pegar una columna desde Excel (enter/tab/espacios)." required style="resi
         item.vendor_name ||
         (item.catalog && item.catalog.supplier_name) ||
         item.catalog_source ||
-        "–";
+        "\u2013";
 
-      const moneda = item.currency || "–";
+      const moneda = item.currency != null ? item.currency : "\u2013";
       const basePrice =
-        item.base_price !== undefined && item.base_price !== null
+        (item.base_price !== undefined && item.base_price !== null)
           ? Number(item.base_price).toFixed(2)
-          : "–";
+          : "\u2013";
 
-      const mainRows = [];
-      mainRows.push(["Código completo", code || "–"]); usedKeys.add("part_number_full");
-      mainRows.push(["Código raíz", item.part_number_root || "–"]); usedKeys.add("part_number_root");
-      mainRows.push(["Descripción", desc || "–"]); usedKeys.add("description");
-      mainRows.push(["Proveedor", proveedor]); usedKeys.add("supplier_name");
-      mainRows.push(["Moneda base", moneda]); usedKeys.add("currency");
-      mainRows.push(["Precio base", basePrice]); usedKeys.add("base_price");
+      const mainRows = [
+        ["C\u00f3digo completo", code || "\u2013"],
+        ["C\u00f3digo ra\u00edz", item.part_number_root || "\u2013"],
+        ["Descripci\u00f3n", desc || "\u2013"],
+        ["Proveedor", proveedor],
+        ["Moneda base", moneda],
+        ["Precio base", basePrice],
+      ];
 
-      if (item.min_qty_default !== undefined && item.min_qty_default !== null) {
-        mainRows.push(["Cantidad mínima por defecto", item.min_qty_default]);
-        usedKeys.add("min_qty_default");
+      if(item.min_qty_default !== undefined && item.min_qty_default !== null){
+        mainRows.push(["Cantidad m\u00ednima por defecto", item.min_qty_default]);
       }
-      if (item.catalog_id !== undefined && item.catalog_id !== null) {
+      if(item.catalog_id !== undefined && item.catalog_id !== null){
         mainRows.push(["Catalog ID", item.catalog_id]);
-        usedKeys.add("catalog_id");
       }
-      if (item.supplier_id !== undefined && item.supplier_id !== null) {
+      if(item.supplier_id !== undefined && item.supplier_id !== null){
         mainRows.push(["Supplier ID", item.supplier_id]);
-        usedKeys.add("supplier_id");
       }
-      if (item.id !== undefined && item.id !== null) {
+      if(item.id !== undefined && item.id !== null){
         mainRows.push(["Part ID", item.id]);
-        usedKeys.add("id");
       }
 
       let html = `
-        <h6 class="mb-2">Información general</h6>
+        <h6 class="mb-2">Informaci\u00f3n general</h6>
         <table class="table table-sm table-dark mb-3">
           <tbody>
-            ${mainRows.map(([label, value]) => `
+            ${mainRows.map(([label, val]) => `
               <tr>
-                <th style="width:35%;">${escapeHtml(label)}</th>
-                <td>${escapeHtml(renderAnyValue(value))}</td>
+                <th style="width:35%;">${escapeHtml(String(label))}</th>
+                <td>${escapeHtml(String(val != null ? val : "\u2013"))}</td>
               </tr>
             `).join("")}
           </tbody>
         </table>
       `;
 
-      // Tramos
+      // Tramos de precio
       const tiers = Array.isArray(item.price_tiers) ? item.price_tiers : [];
-      usedKeys.add("price_tiers");
-
-      if (tiers.length) {
+      if(tiers.length){
         html += `
           <h6 class="mb-2">Tramos de precio</h6>
           <table class="table table-sm table-dark mb-3">
             <thead>
               <tr>
-                <th>Cant. mínima</th>
-                <th>Cant. máxima</th>
+                <th>Cant. m\u00ednima</th>
+                <th>Cant. m\u00e1xima</th>
                 <th>Precio unitario</th>
                 <th>Moneda</th>
               </tr>
             </thead>
             <tbody>
-              ${tiers.map((t) => {
-                const minq = t.min_qty ?? "–";
-                const maxq = t.max_qty ?? "–";
-                const unitPrice = (t.unit_price !== undefined && t.unit_price !== null)
-                  ? Number(t.unit_price).toFixed(2)
-                  : "–";
-                const cur = t.currency || moneda || "–";
-                return `
-                  <tr>
-                    <td>${escapeHtml(renderAnyValue(minq))}</td>
-                    <td>${escapeHtml(renderAnyValue(maxq))}</td>
-                    <td>${escapeHtml(renderAnyValue(unitPrice))}</td>
-                    <td>${escapeHtml(renderAnyValue(cur))}</td>
-                  </tr>
-                `;
-              }).join("")}
-            </tbody>
-          </table>
-        `;
-      }
-
-      // Aliases
-      const aliasesArr = pickNonEmptyArray(item.aliases);
-      usedKeys.add("aliases");
-
-      if (aliasesArr.length) {
-        html += `
-          <h6 class="mb-2">Códigos equivalentes (END-UNIT)</h6>
-          <table class="table table-sm table-dark mb-3">
-            <thead>
-              <tr>
-                <th style="width:55%;">Código</th>
-                <th>Fuente</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${aliasesArr.map((a) => {
-                const acode = a.code || a.alias_code || a.value || "–";
-                const src  = a.source || "–";
-                return `
-                  <tr>
-                    <td><code>${escapeHtml(renderAnyValue(acode))}</code></td>
-                    <td>${escapeHtml(renderAnyValue(src))}</td>
-                  </tr>
-                `;
-              }).join("")}
-            </tbody>
-          </table>
-        `;
-      }
-
-      // Attributes
-      const attrs = pickNonEmptyArray(item.attributes, item.extra_attributes);
-      usedKeys.add("attributes");
-      usedKeys.add("extra_attributes");
-
-      if (attrs.length) {
-        html += `
-          <h6 class="mb-2">Información específica del catálogo</h6>
-          <table class="table table-sm table-dark mb-3">
-            <thead>
-              <tr>
-                <th style="width:35%;">Atributo</th>
-                <th>Valor</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${attrs.map((a) => {
-                const name = a.attr_name || a.name || a.key || "–";
-                const value = a.attr_value || a.value || "–";
-                return `
-                  <tr>
-                    <td>${escapeHtml(renderAnyValue(name))}</td>
-                    <td>${escapeHtml(renderAnyValue(value))}</td>
-                  </tr>
-                `;
-              }).join("")}
-            </tbody>
-          </table>
-        `;
-      }
-
-      // Otros campos (TODO lo restante)
-      const otherEntries = Object.entries(item).filter(([k]) => !usedKeys.has(k));
-      if (otherEntries.length) {
-        html += `
-          <h6 class="mb-2">Otros campos</h6>
-          <table class="table table-sm table-dark mb-2">
-            <thead>
-              <tr>
-                <th style="width:35%;">Campo</th>
-                <th>Valor</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${otherEntries.map(([k, v]) => `
+              ${tiers.map((t)=>`
                 <tr>
-                  <td>${escapeHtml(k)}</td>
-                  <td>${escapeHtml(renderAnyValue(v))}</td>
+                  <td>${escapeHtml(String(t.min_qty != null ? t.min_qty : "\u2013"))}</td>
+                  <td>${escapeHtml(String(t.max_qty != null ? t.max_qty : "\u2013"))}</td>
+                  <td>${escapeHtml((t.unit_price !== undefined && t.unit_price !== null) ? Number(t.unit_price).toFixed(2) : "\u2013")}</td>
+                  <td>${escapeHtml(String(t.currency || moneda || "\u2013"))}</td>
                 </tr>
               `).join("")}
             </tbody>
           </table>
-          <div class="small text-secondary">Para más detalle de estos campos, abre el JSON completo al final.</div>
         `;
       }
 
-      contentEl.innerHTML = html;
+      // Informaci\u00f3n espec\u00edfica: attributes + aliases
+      const attrs = Array.isArray(item.attributes) ? item.attributes : [];
+      const aliases = Array.isArray(item.aliases) ? item.aliases : [];
+
+      const extraRows = [];
+      for(const a of attrs){
+        const name = a.attr_name || a.name || "\u2013";
+        const value = String(a.attr_value != null ? a.attr_value : (a.value != null ? a.value : "\u2013"));
+        extraRows.push([String(name), value]);
+      }
+      for(const al of aliases){
+        const c = al.code || "\u2013";
+        const s = al.source ? ` (${al.source})` : "";
+        extraRows.push(["alias", `${c}${s}`]);
+      }
+
+      html += `
+        <h6 class="mb-2">Informaci\u00f3n espec\u00edfica del cat\u00e1logo</h6>
+        <table class="table table-sm table-dark mb-3">
+          <thead>
+            <tr>
+              <th style="width:35%;">Atributo</th>
+              <th>Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              extraRows.length
+                ? extraRows.map(([k, v]) => `
+                    <tr>
+                      <td>${escapeHtml(k)}</td>
+                      <td>${escapeHtml(v)}</td>
+                    </tr>
+                  `).join("")
+                : `<tr><td colspan="2" class="text-center text-secondary">Sin informaci\u00f3n adicional.</td></tr>`
+            }
+          </tbody>
+        </table>
+      `;
+
+      document.getElementById("detailContent").innerHTML = html;
 
       const modalEl = document.getElementById("detailModal");
       const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
@@ -606,42 +517,41 @@ Puedes pegar una columna desde Excel (enter/tab/espacios)." required style="resi
     const resultsBody = document.getElementById("resultsBody");
     const resultsCount = document.getElementById("resultsCount");
 
-    searchForm.addEventListener("submit", async (e) => {
+    searchForm.addEventListener("submit", async (e)=>{
       e.preventDefault();
       const query = document.getElementById("searchQuery").value.trim();
       const vendor = document.getElementById("searchVendor").value.trim();
       const currency = document.getElementById("searchCurrency").value;
 
-      if (!query) return;
+      if(!query) return;
 
       searchStatus.textContent = "Buscando repuestos...";
       resultsBody.innerHTML = `<tr><td colspan="4" class="text-center text-secondary">Cargando resultados...</td></tr>`;
       resultsCount.textContent = "";
 
-      try {
+      try{
         const params = new URLSearchParams({ q: query });
-        if (vendor) params.append("vendor", vendor);
-        if (currency) params.append("currency", currency);
+        if(vendor) params.append("vendor", vendor);
+        if(currency) params.append("currency", currency);
 
         const resp = await fetch(`${API_BASE}/parts/search?` + params.toString());
-        if (!resp.ok) throw new Error("Error al consultar la API");
+        if(!resp.ok) throw new Error("Error al consultar la API");
 
         const data = await resp.json();
         const results = Array.isArray(data) ? data : (data.items || []);
         lastResults = results;
 
-        if (!results.length) {
+        if(!results.length){
           resultsBody.innerHTML = `<tr><td colspan="4" class="text-center text-secondary">No se encontraron repuestos para esta búsqueda.</td></tr>`;
-          resultsCount.textContent = "";
           searchStatus.textContent = "Sin resultados.";
           return;
         }
 
         resultsBody.innerHTML = "";
-        results.forEach((item, idx) => {
+        results.forEach((item, idx)=>{
           const codigo = item.part_number_full || item.part_number_root || "-";
           const desc = item.description || "-";
-          const proveedor =
+          const prov =
             item.supplier_name ||
             (item.supplier && item.supplier.name) ||
             item.vendor_name ||
@@ -653,62 +563,55 @@ Puedes pegar una columna desde Excel (enter/tab/espacios)." required style="resi
           tr.innerHTML = `
             <td><code>${escapeHtml(codigo)}</code></td>
             <td>${escapeHtml(desc)}</td>
-            <td>${escapeHtml(proveedor)}</td>
+            <td>${escapeHtml(prov)}</td>
             <td><button type="button" class="btn btn-sm btn-outline-light" data-detail-index="${idx}">Ver</button></td>
           `;
           resultsBody.appendChild(tr);
         });
 
-        document.querySelectorAll("button[data-detail-index]").forEach((btn) => {
-          btn.addEventListener("click", (ev) => {
-            const idx = parseInt(ev.currentTarget.getAttribute("data-detail-index"), 10);
+        document.querySelectorAll("button[data-detail-index]").forEach((btn)=>{
+          btn.addEventListener("click",(ev)=>{
+            const idx = parseInt(ev.currentTarget.getAttribute("data-detail-index"),10);
             showDetail(idx);
           });
         });
 
         resultsCount.textContent = `${results.length} repuesto(s) encontrados.`;
         searchStatus.textContent = "Búsqueda completada.";
-      } catch (err) {
+      }catch(err){
         console.error(err);
         resultsBody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">Ocurrió un error al buscar. Revisa que el backend esté levantado.</td></tr>`;
         searchStatus.textContent = "Error al buscar repuestos.";
       }
     });
 
-    // ===== Exportar =====
-    const btnExportExcel = document.getElementById("btnExportExcel");
-    if (btnExportExcel) {
-      btnExportExcel.addEventListener("click", () => {
-        const q = document.getElementById("searchQuery").value.trim();
-        const vendor = document.getElementById("searchVendor").value.trim();
-        const currency = document.getElementById("searchCurrency").value;
+    // Exportar (endpoint real /parts/export)
+    document.getElementById("btnExportExcel").addEventListener("click", ()=>{
+      const q = document.getElementById("searchQuery").value.trim();
+      const vendor = document.getElementById("searchVendor").value.trim();
+      const currency = document.getElementById("searchCurrency").value;
 
-        if (!q) {
-          alert("Primero ingresa un código o descripción para buscar.");
-          return;
-        }
+      if(!q){ alert("Primero ingresa un código o descripción para buscar."); return; }
 
-        const params = new URLSearchParams();
-        params.append("q", q);
-        if (vendor) params.append("vendor", vendor);
-        if (currency) params.append("currency", currency);
+      const params = new URLSearchParams();
+      params.append("q", q);
+      if(vendor) params.append("vendor", vendor);
+      if(currency) params.append("currency", currency);
 
-        // según tu swagger: /parts/export
-        window.open(`${API_BASE}/parts/export?${params.toString()}`, "_blank");
-      });
-    }
+      window.open(`${API_BASE}/parts/export?${params.toString()}`, "_blank");
+    });
 
-    // ===== Upload =====
+    // Upload
     const uploadForm = document.getElementById("uploadForm");
     const uploadStatus = document.getElementById("uploadStatus");
 
-    uploadForm.addEventListener("submit", async (e) => {
+    uploadForm.addEventListener("submit", async (e)=>{
       e.preventDefault();
       const fileInput = document.getElementById("catalogFile");
       const vendorInput = document.getElementById("catalogVendor");
 
       const file = fileInput.files[0];
-      if (!file) return;
+      if(!file) return;
 
       const formData = new FormData();
       formData.append("file", file);
@@ -718,51 +621,43 @@ Puedes pegar una columna desde Excel (enter/tab/espacios)." required style="resi
       uploadStatus.textContent = "Subiendo catálogo...";
       uploadStatus.className = "mt-3 small text-secondary";
 
-      try {
-        const resp = await fetch(`${API_BASE}/catalogs/upload`, { method: "POST", body: formData });
-        if (!resp.ok) {
-          const errorText = await resp.text();
-          throw new Error(errorText || "Error al subir catálogo");
-        }
+      try{
+        const resp = await fetch(`${API_BASE}/catalogs/upload`, { method:"POST", body: formData });
+        if(!resp.ok) throw new Error(await resp.text());
 
-        await resp.json().catch(() => ({}));
-
+        await resp.json().catch(()=>({}));
         uploadStatus.textContent = "Catálogo subido y procesado correctamente.";
         uploadStatus.className = "mt-3 small text-success";
 
         uploadForm.reset();
         loadStats();
         loadCatalogs();
-      } catch (err) {
+      }catch(err){
         console.error(err);
-        uploadStatus.textContent = "Error al subir catálogo. Revisa la consola o los logs del backend.";
+        uploadStatus.textContent = "Error al subir catálogo. Revisa la consola o logs del backend.";
         uploadStatus.className = "mt-3 small text-danger";
       }
     });
 
-    // ===== Catálogos =====
-    async function loadCatalogs() {
+    // Catalogs
+    async function loadCatalogs(){
       const tbody = document.getElementById("catalogsBody");
-      if (!tbody) return;
+      if(!tbody) return;
 
       tbody.innerHTML = `<tr><td colspan="7" class="text-center text-secondary">Cargando...</td></tr>`;
-
-      try {
+      try{
         const resp = await fetch(`${API_BASE}/catalogs`);
-        if (!resp.ok) throw new Error("Error al obtener catálogos");
-
+        if(!resp.ok) throw new Error("Error al obtener catálogos");
         const data = await resp.json();
 
-        if (!Array.isArray(data) || data.length === 0) {
+        if(!Array.isArray(data) || data.length===0){
           tbody.innerHTML = `<tr><td colspan="7" class="text-center text-secondary">No hay catálogos subidos aún.</td></tr>`;
           return;
         }
 
         tbody.innerHTML = "";
-        data.forEach((cat) => {
-          let dateStr = "–";
-          if (cat.created_at) dateStr = new Date(cat.created_at).toLocaleString("es-CL");
-
+        data.forEach((cat)=>{
+          const dateStr = cat.created_at ? new Date(cat.created_at).toLocaleString("es-CL") : "–";
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td><input class="form-check-input catalog-check" type="checkbox" data-id="${escapeHtml(cat.id)}" /></td>
@@ -771,101 +666,89 @@ Puedes pegar una columna desde Excel (enter/tab/espacios)." required style="resi
             <td>${escapeHtml(cat.year)}</td>
             <td><code>${escapeHtml(cat.original_filename)}</code></td>
             <td class="small">${escapeHtml(dateStr)}</td>
-            <td>
-              <button class="btn btn-sm btn-danger" type="button" onclick="deleteCatalog(${escapeHtml(cat.id)})">🗑</button>
-            </td>
+            <td><button class="btn btn-sm btn-danger" type="button" onclick="deleteCatalog(${escapeHtml(cat.id)})">🗑</button></td>
           `;
           tbody.appendChild(tr);
         });
-      } catch (err) {
+      }catch(err){
         console.error(err);
         tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error al cargar la lista.</td></tr>`;
       }
     }
 
-    function getSelectedCatalogIds() {
+    function getSelectedCatalogIds(){
       return Array.from(document.querySelectorAll(".catalog-check:checked"))
-        .map((el) => el.getAttribute("data-id"))
+        .map(el => el.getAttribute("data-id"))
         .filter(Boolean);
     }
 
-    function exportStandardAll() {
-      window.location.href = `${API_BASE}/catalogs/export/standard.xlsx`;
-    }
-
-    function exportStandardSelected() {
+    function exportStandardAll(){ window.location.href = `${API_BASE}/catalogs/export/standard.xlsx`; }
+    function exportStandardSelected(){
       const ids = getSelectedCatalogIds();
-      if (!ids.length) { alert("Selecciona al menos un catálogo para exportar."); return; }
+      if(!ids.length){ alert("Selecciona al menos un catálogo para exportar."); return; }
       const qs = encodeURIComponent(ids.join(","));
       window.location.href = `${API_BASE}/catalogs/export/standard.xlsx?catalog_ids=${qs}`;
     }
 
-    async function deleteCatalog(id) {
-      if (!confirm(`¿Eliminar el catálogo ID ${id}? Esto borrará sus parts y precios.`)) return;
-      try {
-        const resp = await fetch(`${API_BASE}/catalogs/${id}`, { method: "DELETE" });
-        if (!resp.ok) {
-          const t = await resp.text();
-          throw new Error(t || "Error al eliminar catálogo");
-        }
+    async function deleteCatalog(id){
+      if(!confirm(`¿Eliminar el catálogo ID ${id}? Esto borrará sus parts y precios.`)) return;
+      try{
+        const resp = await fetch(`${API_BASE}/catalogs/${id}`, { method:"DELETE" });
+        if(!resp.ok) throw new Error(await resp.text());
         await loadCatalogs();
         await loadStats();
-      } catch (err) {
+      }catch(err){
         console.error(err);
         alert("No se pudo eliminar el catálogo.\n\nDetalle: " + (err?.message || err));
       }
     }
 
-    async function deleteCatalogsSelected() {
+    async function deleteCatalogsSelected(){
       const ids = getSelectedCatalogIds();
-      if (!ids.length) { alert("Selecciona al menos un catálogo para eliminar."); return; }
-      if (!confirm(`¿Eliminar ${ids.length} catálogo(s)? Esto borrará sus parts y precios.`)) return;
+      if(!ids.length){ alert("Selecciona al menos un catálogo para eliminar."); return; }
+      if(!confirm(`¿Eliminar ${ids.length} catálogo(s)? Esto borrará sus parts y precios.`)) return;
 
-      try {
-        // Si tu backend soporta query param catalog_ids en DELETE /catalogs
-        const qs = encodeURIComponent(ids.join(","));
-        const resp = await fetch(`${API_BASE}/catalogs?catalog_ids=${qs}`, { method: "DELETE" });
-        if (!resp.ok) {
-          const t = await resp.text();
-          throw new Error(t || "Error al eliminar catálogos");
+      try{
+        for(const id of ids){
+          const resp = await fetch(`${API_BASE}/catalogs/${id}`, { method:"DELETE" });
+          if(!resp.ok) throw new Error(await resp.text());
         }
         document.getElementById("chkAllCatalogs").checked = false;
         await loadCatalogs();
         await loadStats();
-      } catch (err) {
+      }catch(err){
         console.error(err);
         alert("No se pudieron eliminar los catálogos.\n\nDetalle: " + (err?.message || err));
       }
     }
 
-    document.addEventListener("change", (e) => {
-      if (e.target && e.target.id === "chkAllCatalogs") {
+    document.addEventListener("change",(e)=>{
+      if(e.target && e.target.id==="chkAllCatalogs"){
         const checked = e.target.checked;
-        document.querySelectorAll(".catalog-check").forEach((c) => (c.checked = checked));
+        document.querySelectorAll(".catalog-check").forEach(c => c.checked = checked);
       }
     });
 
     const btnCatalogs = document.getElementById("btn-tab-catalogs");
-    if (btnCatalogs) btnCatalogs.addEventListener("click", () => loadCatalogs());
+    if(btnCatalogs) btnCatalogs.addEventListener("click", ()=>loadCatalogs());
 
-    // ===== Stats =====
-    async function loadStats() {
+    // Stats
+    async function loadStats(){
       const elCatalogs = document.getElementById("statCatalogs");
       const elParts = document.getElementById("statParts");
       const elUpdated = document.getElementById("statUpdated");
 
-      try {
+      try{
         const resp = await fetch(`${API_BASE}/stats`);
-        if (!resp.ok) throw new Error("Error al obtener /stats");
-
+        if(!resp.ok) throw new Error("Error al obtener /stats");
         const data = await resp.json();
+
         elCatalogs.textContent = (data.catalogs ?? 0).toLocaleString("es-CL");
         elParts.textContent = (data.parts ?? 0).toLocaleString("es-CL");
-
         const ts = data.generated_at ? new Date(data.generated_at) : new Date();
         elUpdated.textContent = ts.toLocaleString();
-      } catch (err) {
-        console.error("Error cargando /stats:", err);
+      }catch(err){
+        console.error(err);
         elCatalogs.textContent = "–";
         elParts.textContent = "–";
         elUpdated.textContent = new Date().toLocaleString();
