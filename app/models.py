@@ -34,6 +34,7 @@ class Part(Base):
     supplier_id = Column(Integer, ForeignKey("suppliers.id"))
     part_number_full = Column(String, index=True)
     part_number_root = Column(String, index=True)
+    pn_search = Column(String, index=True)  # normalizado: solo A-Z0-9 uppercase
     description = Column(String)
     currency = Column(String(3))
     base_price = Column(Float)

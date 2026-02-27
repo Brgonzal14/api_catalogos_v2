@@ -144,15 +144,14 @@ Puedes pegar una columna desde Excel (enter/tab/espacios)." required style="resi
 
             <div class="col-md-3">
               <label class="form-label small-label">Proveedor (opcional)</label>
-              <input type="text" class="form-control" id="searchVendor" placeholder="Ej: STUKERJURGEN" />
+              <input type="text" class="form-control" id="searchVendor" placeholder="Ej: ALBANY, alba…" list="vendorsList" autocomplete="off" />
+              <datalist id="vendorsList"></datalist>
             </div>
 
             <div class="col-md-2">
               <label class="form-label small-label">Moneda (opcional)</label>
               <select class="form-select" id="searchCurrency">
                 <option value="">Todas</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
               </select>
             </div>
 
@@ -631,6 +630,8 @@ Puedes pegar una columna desde Excel (enter/tab/espacios)." required style="resi
 
         uploadForm.reset();
         loadStats();
+        loadVendorsList();
+        loadCurrenciesList();
         loadCatalogs();
       }catch(err){
         console.error(err);
@@ -756,6 +757,58 @@ Puedes pegar una columna desde Excel (enter/tab/espacios)." required style="resi
     }
 
     loadStats();
+
+    // Cargar proveedores dinámicamente para el datalist
+    async function loadVendorsList() {
+      try {
+        const resp = await fetch(`${API_BASE}/stats/suppliers`);
+        if (!resp.ok) return;
+        const names = await resp.json();
+        const dl = document.getElementById("vendorsList");
+        if (!dl) return;
+        dl.innerHTML = "";
+        names.forEach(name => {
+          const opt = document.createElement("option");
+          opt.value = name;
+          dl.appendChild(opt);
+        });
+      } catch(err) {
+        console.warn("No se pudieron cargar proveedores:", err);
+      }
+    }
+
+    // Cargar monedas dinámicamente desde la BD
+    async function loadCurrenciesList() {
+      try {
+        const resp = await fetch(`${API_BASE}/parts/currencies`);
+        if (!resp.ok) return;
+        const currencies = await resp.json();
+        const sel = document.getElementById("searchCurrency");
+        if (!sel) return;
+        sel.innerHTML = `<option value="">Todas</option>`;
+        currencies.forEach(cur => {
+          const opt = document.createElement("option");
+          opt.value = cur;
+          opt.textContent = cur;
+          sel.appendChild(opt);
+        });
+      } catch(err) {
+        console.warn("No se pudieron cargar monedas:", err);
+        // Fallback con opciones por defecto
+        const sel = document.getElementById("searchCurrency");
+        if (sel && sel.options.length <= 1) {
+          ["USD", "EUR"].forEach(cur => {
+            const opt = document.createElement("option");
+            opt.value = cur;
+            opt.textContent = cur;
+            sel.appendChild(opt);
+          });
+        }
+      }
+    }
+
+    loadVendorsList();
+    loadCurrenciesList();
   </script>
 </body>
 </html>

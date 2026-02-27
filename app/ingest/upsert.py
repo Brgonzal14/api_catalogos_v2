@@ -6,7 +6,7 @@ import pandas as pd
 from sqlalchemy.orm import Session
 
 from app import models
-from app.utils.search import normalize_part_number
+from app.utils.search import normalize_part_number, normalize_pn
 
 BATCH_SIZE = 500  # registros por commit para catálogos grandes
 
@@ -175,6 +175,7 @@ def upsert_parse_result(
             if not raw_pn:
                 continue
             full, root = normalize_part_number(raw_pn)
+            pn_search = normalize_pn(full)
             desc = row.get("description")
             cur = row.get("currency")
             price = row.get("price")
@@ -182,6 +183,7 @@ def upsert_parse_result(
             part = models.Part(
                 catalog_id=catalog.id, supplier_id=supplier.id,
                 part_number_full=full, part_number_root=root,
+                pn_search=pn_search,
                 description=(str(desc).strip() if _notna(desc) and str(desc).strip() else None),
                 currency=(str(cur).strip() if _notna(cur) and str(cur).strip() else None),
                 base_price=_to_float(price, default=None),

@@ -8,7 +8,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, func
 
 from app.db import get_db
 from app import models
@@ -45,10 +45,33 @@ def format_prices_for_export(part) -> str:
     return ""
 
 
+@router.get("/currencies")
+def list_currencies(db: Session = Depends(get_db)):
+    """Retorna las monedas unicas presentes en la BD."""
+    part_currencies = (
+        db.query(models.Part.currency)
+        .filter(models.Part.currency != None, models.Part.currency != "")
+        .distinct()
+        .all()
+    )
+    tier_currencies = (
+        db.query(models.PriceTier.currency)
+        .filter(models.PriceTier.currency != None, models.PriceTier.currency != "")
+        .distinct()
+        .all()
+    )
+    currencies = sorted(set(
+        [r[0].strip().upper() for r in part_currencies if r[0]]
+        + [r[0].strip().upper() for r in tier_currencies if r[0]]
+    ))
+    return currencies
+
+
 @router.get("/search")
 def search_parts(
-    query: str = Query(..., alias="q", min_length=1, description="Código o descripción (puede ser múltiple separado por coma o líneas)"),
-    vendor: str = Query(None, description="Proveedor (opcional). Filtra por nombre del supplier."),
+    query: str = Query(..., alias="q", min_length=1),
+    vendor: str = Query(None),
+    currency: str = Query(None),
     db: Session = Depends(get_db),
 ):
     raw = (query or "").strip()
@@ -56,16 +79,15 @@ def search_parts(
         return []
 
     vendor_clean = (vendor or "").strip()
+    currency_clean = (currency or "").strip().upper()
 
     terms = [t.strip() for t in re.split(r"[,\n;\t]+", raw) if t.strip()]
 
     groups = []
     for t in terms:
         t_norm = normalize_pn(t)
-
         like_prefix = f"{t}%"
         like_any = f"%{t}%"
-
         like_prefix_norm = f"{t_norm}%"
         like_any_norm = f"%{t_norm}%"
 
@@ -95,6 +117,18 @@ def search_parts(
     if vendor_clean:
         q = q.filter(models.Supplier.name.ilike(f"%{vendor_clean}%"))
 
+    if currency_clean:
+        q = q.filter(
+            or_(
+                func.upper(models.Part.currency) == currency_clean,
+                models.Part.id.in_(
+                    db.query(models.PriceTier.part_id)
+                    .filter(func.upper(models.PriceTier.currency) == currency_clean)
+                    .subquery()
+                )
+            )
+        )
+
     rows = q.order_by(models.Part.part_number_full).all()
 
     results = []
@@ -104,7 +138,6 @@ def search_parts(
         if part.id in seen_parts:
             return
         seen_parts.add(part.id)
-
         item = {
             "id": part.id,
             "part_number_full": part.part_number_full,
@@ -153,9 +186,10 @@ def search_parts(
 def export_search_results(
     query: str = Query(..., alias="q", min_length=1),
     vendor: str = Query(None),
+    currency: str = Query(None),
     db: Session = Depends(get_db),
 ):
-    results = search_parts(query=query, vendor=vendor, db=db)
+    results = search_parts(query=query, vendor=vendor, currency=currency, db=db)
 
     records = []
     for r in results:
@@ -179,15 +213,13 @@ def export_search_results(
         )
 
     df = pd.DataFrame(records)
-
     bio = io.BytesIO()
     with pd.ExcelWriter(bio, engine="openpyxl") as writer:
         df.to_excel(writer, index=False, sheet_name="results")
-
     bio.seek(0)
-    filename = "search_results.xlsx"
+
     return StreamingResponse(
         bio,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={"Content-Disposition": "attachment; filename=search_results.xlsx"},
     )

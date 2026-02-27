@@ -43,6 +43,25 @@ BEGIN
   CREATE INDEX IF NOT EXISTS ix_parts_pn_search ON parts (pn_search);
   CREATE INDEX IF NOT EXISTS ix_parts_pn_search_pattern ON parts (pn_search text_pattern_ops);
   CREATE INDEX IF NOT EXISTS ix_parts_pn_search_trgm ON parts USING gin (pn_search gin_trgm_ops);
+
+  -- Trigger para auto-rellenar pn_search en INSERT/UPDATE
+  CREATE OR REPLACE FUNCTION trg_parts_pn_search()
+  RETURNS trigger LANGUAGE plpgsql AS $$
+  BEGIN
+    NEW.pn_search := upper(regexp_replace(COALESCE(NEW.part_number_full, ''), '[^A-Za-z0-9]+', '', 'g'));
+    RETURN NEW;
+  END;
+  $$;
+
+  DROP TRIGGER IF EXISTS trig_parts_pn_search ON parts;
+  CREATE TRIGGER trig_parts_pn_search
+    BEFORE INSERT OR UPDATE OF part_number_full ON parts
+    FOR EACH ROW EXECUTE FUNCTION trg_parts_pn_search();
+
+  -- Rellenar registros existentes que tengan pn_search NULL
+  UPDATE parts
+  SET pn_search = upper(regexp_replace(COALESCE(part_number_full, ''), '[^A-Za-z0-9]+', '', 'g'))
+  WHERE pn_search IS NULL OR pn_search = '';
 END $$;
 SQL
 

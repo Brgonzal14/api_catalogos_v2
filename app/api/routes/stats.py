@@ -22,3 +22,10 @@ def stats(db: Session = Depends(get_db)):
         "parts": parts,
         "price_tiers": tiers,
     }
+
+
+@router.get("/stats/suppliers")
+def list_suppliers(db: Session = Depends(get_db)):
+    """Retorna la lista de nombres de proveedores en la BD."""
+    rows = db.query(models.Supplier.name).order_by(models.Supplier.name).all()
+    return [r[0] for r in rows if r[0]]

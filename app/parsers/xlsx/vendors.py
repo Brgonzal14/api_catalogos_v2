@@ -6,3 +6,4 @@ from .vendors_adhetec import AdhetecXlsxParser  # noqa: F401
 from .vendors_safran import SafranSCGXlsxParser  # noqa: F401
 from .vendors_freudenberg import FreudenbergXlsxParser  # noqa: F401
 from .vendors_keddeg import KeddegXlsxParser  # noqa: F401
+from .vendors_cml import CMLExcelParser
