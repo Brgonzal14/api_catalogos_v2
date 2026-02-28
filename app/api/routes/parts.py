@@ -8,7 +8,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, or_, func, text
 
 from app.db import get_db
 from app import models
@@ -21,6 +21,10 @@ from app.utils.search import (
 )
 
 router = APIRouter(prefix="/parts", tags=["parts"])
+
+# Umbral de similitud para búsqueda fuzzy de proveedor (0.0 - 1.0)
+# 0.25 es bastante permisivo: "ALVANY" encuentra "ALBANY 2026"
+VENDOR_SIMILARITY_THRESHOLD = 0.25
 
 
 def format_prices_for_export(part) -> str:
@@ -43,6 +47,27 @@ def format_prices_for_export(part) -> str:
         return f">={mq}: {part.base_price} {cur}".strip()
 
     return ""
+
+
+def vendor_filter(vendor_clean: str):
+    """
+    Filtra proveedores con coincidencia flexible:
+    1. ILIKE %texto%        → contiene la cadena (ej: "alba" → "ALBANY 2026")
+    2. word_similarity      → palabra parecida dentro del nombre (ej: "ALVANY" → "ALBANY")
+    3. similarity           → similitud global del string completo
+    Usa pg_trgm (ya habilitado en la BD).
+    """
+    name_upper = func.upper(models.Supplier.name)
+    query_upper = vendor_clean.upper()
+
+    return or_(
+        # Contiene la cadena exacta (case-insensitive)
+        models.Supplier.name.ilike(f"%{vendor_clean}%"),
+        # Palabra dentro del nombre con similitud fuzzy
+        func.word_similarity(query_upper, name_upper) >= VENDOR_SIMILARITY_THRESHOLD,
+        # Similitud global
+        func.similarity(query_upper, name_upper) >= VENDOR_SIMILARITY_THRESHOLD,
+    )
 
 
 @router.get("/currencies")
@@ -114,9 +139,11 @@ def search_parts(
         .filter(combined_filter)
     )
 
+    # Filtro proveedor: fuzzy con pg_trgm
     if vendor_clean:
-        q = q.filter(models.Supplier.name.ilike(f"%{vendor_clean}%"))
+        q = q.filter(vendor_filter(vendor_clean))
 
+    # Filtro moneda: en part.currency o en algún price_tier
     if currency_clean:
         q = q.filter(
             or_(

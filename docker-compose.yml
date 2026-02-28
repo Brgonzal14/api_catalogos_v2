@@ -48,9 +48,10 @@ services:
       gunicorn app.main:app
       -k uvicorn.workers.UvicornWorker
       --bind 0.0.0.0:8000
+      --timeout 300
       --access-logfile -
       --error-logfile -
-      --log-level info      
+      --log-level info
 
 volumes:
   db_data:
