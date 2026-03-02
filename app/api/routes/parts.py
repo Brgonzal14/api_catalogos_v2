@@ -108,26 +108,87 @@ def search_parts(
 
     terms = [t.strip() for t in re.split(r"[,\n;\t]+", raw) if t.strip()]
 
+    # Detecta si un término parece un part number (tiene dígitos, mezcla letras+números, o guión)
+    _pn_re = re.compile(r"(?:\d|[A-Za-z]\d|\d[A-Za-z]|-)")
+
+    def looks_like_pn(t: str) -> bool:
+        return bool(_pn_re.search(t))
+
+    def has_x_wildcard(t: str) -> bool:
+        """Detecta si el término contiene X como wildcard posicional.
+        Considera wildcard si hay 'X' al final, doble 'XX', o '-X' como sufijo.
+        """
+        t_up = t.upper()
+        return bool(re.search(r"X{2,}|[0-9]X+$|X+$|-X+", t_up))
+
+    def pn_to_sql_wildcard(t: str) -> str:
+        """Convierte un PN con X wildcards a patrón ILIKE de SQL.
+        Cada X (o grupo de X al final) se convierte en _ (un carácter cualquiera).
+        Escapa % y _ literales antes de convertir las X.
+        Ejemplo: '1240XX'  -> '1240__'
+                 '1234-XX' -> '1234-__'
+                 '1240X'   -> '1240_'
+        """
+        # Escapar % y _ literales para no confundir al ILIKE
+        t_escaped = t.replace("%", r"\%").replace("_", r"\_")
+        # Reemplazar X mayúscula/minúscula por _ (wildcard SQL de 1 char)
+        pattern = re.sub(r"[Xx]", "_", t_escaped)
+        return pattern
+
+    def pn_to_sql_wildcard_norm(t: str) -> str:
+        """Igual pero para la versión normalizada (sin separadores)."""
+        t_norm_escaped = normalize_pn(t)  # ya quita no-alfanuméricos
+        # En versión normalizada las X quedan como X dentro del string
+        pattern = re.sub(r"X", "_", t_norm_escaped)
+        return pattern
+
     groups = []
     for t in terms:
         t_norm = normalize_pn(t)
-        like_prefix = f"{t}%"
-        like_any = f"%{t}%"
-        like_prefix_norm = f"{t_norm}%"
-        like_any_norm = f"%{t_norm}%"
+        if not t_norm:
+            continue
 
-        groups.append(
-            or_(
+        like_prefix      = f"{t}%"
+        like_prefix_norm = f"{t_norm}%"
+        like_any_norm    = f"%{t_norm}%"
+        like_any_desc    = f"%{t}%"
+
+        is_pn = looks_like_pn(t)
+        has_x = has_x_wildcard(t)
+
+        if is_pn:
+            conds = [
                 models.Part.part_number_full.ilike(like_prefix),
                 models.Part.part_number_root.ilike(like_prefix),
-                models.Part.description.ilike(like_any),
-                models.PartAttribute.attr_value.ilike(like_any),
-                models.PartAlias.code.ilike(like_any),
                 sql_normalize(models.Part.part_number_full, db).ilike(like_prefix_norm),
                 sql_normalize(models.Part.part_number_root, db).ilike(like_prefix_norm),
+                models.PartAlias.code.ilike(like_prefix),
                 sql_normalize(models.PartAlias.code, db).ilike(like_any_norm),
-            )
-        )
+            ]
+            # Si el término tiene X wildcards, agregar también el patrón con _ SQL
+            if has_x:
+                sql_pat       = pn_to_sql_wildcard(t)       # ej: "1240__"
+                sql_pat_norm  = pn_to_sql_wildcard_norm(t)  # ej: "1240__" (sin guiones)
+                conds += [
+                    models.Part.part_number_full.ilike(sql_pat),
+                    sql_normalize(models.Part.part_number_full, db).ilike(sql_pat_norm),
+                    models.PartAlias.code.ilike(sql_pat),
+                    sql_normalize(models.PartAlias.code, db).ilike(sql_pat_norm),
+                ]
+            if len(t_norm) >= 6:
+                conds.append(models.Part.description.ilike(like_any_desc))
+                conds.append(models.PartAttribute.attr_value.ilike(like_any_desc))
+        else:
+            conds = [
+                models.Part.part_number_full.ilike(like_prefix),
+                models.Part.part_number_root.ilike(like_prefix),
+                models.Part.description.ilike(like_any_desc),
+                models.PartAttribute.attr_value.ilike(like_any_desc),
+                models.PartAlias.code.ilike(like_any_desc),
+                sql_normalize(models.Part.part_number_full, db).ilike(like_prefix_norm),
+            ]
+
+        groups.append(or_(*conds))
 
     combined_filter = or_(*groups)
 
